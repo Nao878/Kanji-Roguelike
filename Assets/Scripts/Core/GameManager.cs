@@ -12,6 +12,8 @@ public class GameManager : MonoBehaviour
     public int playerMaxHP = 50;
     public int playerStartMana = 3;
     public int initialHandSize = 5;
+    public int startGold = 50;
+    public int fusionCost = 20;
 
     [Header("現在の状態")]
     public GameState currentState = GameState.Map;
@@ -20,6 +22,7 @@ public class GameManager : MonoBehaviour
     public int playerMaxMana;
     public int playerAttackBuff = 0;
     public int playerDefenseBuff = 0;
+    public int playerGold = 0;
 
     [Header("デッキ")]
     public List<KanjiCardData> deck = new List<KanjiCardData>();
@@ -36,6 +39,7 @@ public class GameManager : MonoBehaviour
     public GameObject mapPanel;
     public GameObject battlePanel;
     public GameObject fusionPanel;
+    public GameObject shopPanel;
 
     // 合成レシピDictionary（高速検索用）
     private Dictionary<(int, int), int> fusionRecipeDict = new Dictionary<(int, int), int>();
@@ -67,6 +71,7 @@ public class GameManager : MonoBehaviour
         playerMana = playerMaxMana;
         playerAttackBuff = 0;
         playerDefenseBuff = 0;
+        playerGold = startGold;
 
         Debug.Log($"[GameManager] ゲーム初期化完了 HP:{playerHP} マナ:{playerMana}");
 
@@ -88,6 +93,7 @@ public class GameManager : MonoBehaviour
         if (mapPanel != null) mapPanel.SetActive(newState == GameState.Map);
         if (battlePanel != null) battlePanel.SetActive(newState == GameState.Battle);
         if (fusionPanel != null) fusionPanel.SetActive(newState == GameState.Fusion);
+        if (shopPanel != null) shopPanel.SetActive(newState == GameState.Shop);
 
         switch (newState)
         {

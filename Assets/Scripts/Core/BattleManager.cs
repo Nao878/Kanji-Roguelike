@@ -206,8 +206,13 @@ public class BattleManager : MonoBehaviour
         if (enemyCurrentHP <= 0)
         {
             battleState = BattleState.Won;
-            AddBattleLog("勝利！");
-            Debug.Log("[BattleManager] 戦闘勝利！");
+            int goldReward = 15;
+            if (GameManager.Instance != null)
+            {
+                GameManager.Instance.playerGold += goldReward;
+            }
+            AddBattleLog($"勝利！ {goldReward}G獲得！");
+            Debug.Log($"[BattleManager] 戦闘勝利！ {goldReward}G獲得");
 
             // 少し待ってからマップに戻る
             Invoke(nameof(ReturnToMap), 1.5f);

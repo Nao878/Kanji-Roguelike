@@ -56,9 +56,10 @@ public class ProjectSetupTool : EditorWindow
         var mapPanel = CreateMapPanel(canvas.transform, mapManager);
         var battlePanel = CreateBattlePanel(canvas.transform, battleManager);
         var fusionPanel = CreateFusionPanel(canvas.transform);
+        var shopPanel = CreateShopPanel(canvas.transform);
 
         // 参照の割り当て
-        AssignReferences(gameManager, battleManager, mapManager, fusionEngine, mapPanel, battlePanel, fusionPanel);
+        AssignReferences(gameManager, battleManager, mapManager, fusionEngine, mapPanel, battlePanel, fusionPanel, shopPanel);
 
         // 初期デッキ設定
         SetupInitialDeck(gameManager, cards);
@@ -348,11 +349,20 @@ public class ProjectSetupTool : EditorWindow
     }
 
     // ====================================
-    // マップパネル作成
+    // マップパネル作成（漢字地形背景）
     // ====================================
     private static GameObject CreateMapPanel(Transform parent, MapManager mapManager)
     {
-        var panel = CreatePanel(parent, "MapPanel", new Color(0.08f, 0.1f, 0.15f, 0.95f));
+        var panel = CreatePanel(parent, "MapPanel", new Color(0.05f, 0.07f, 0.10f, 0.98f));
+
+        // 背景漢字エリア（地形テクスチャ）
+        var bgArea = new GameObject("BackgroundKanjiArea");
+        bgArea.transform.SetParent(panel.transform, false);
+        var bgRect = bgArea.AddComponent<RectTransform>();
+        bgRect.anchorMin = Vector2.zero;
+        bgRect.anchorMax = Vector2.one;
+        bgRect.offsetMin = Vector2.zero;
+        bgRect.offsetMax = Vector2.zero;
 
         // タイトル
         CreateText(panel.transform, "TitleText", "漢字の迷宮", 36,
@@ -360,29 +370,44 @@ public class ProjectSetupTool : EditorWindow
 
         // 階層テキスト
         var floorText = CreateText(panel.transform, "FloorText", "階層: 1 / 5", 22,
-            new Vector2(0.3f, 0.84f), new Vector2(0.7f, 0.92f), new Color(0.7f, 0.8f, 0.9f));
+            new Vector2(0.02f, 0.91f), new Vector2(0.2f, 0.99f), new Color(0.7f, 0.8f, 0.9f));
+
+        // ゴールド表示
+        var goldText = CreateText(panel.transform, "GoldText", "金: 50G", 22,
+            new Vector2(0.8f, 0.91f), new Vector2(0.98f, 0.99f), new Color(1f, 0.85f, 0.2f));
 
         // マップコンテンツエリア
         var mapContent = new GameObject("MapContent");
         mapContent.transform.SetParent(panel.transform, false);
         var contentRect = mapContent.AddComponent<RectTransform>();
-        contentRect.anchorMin = new Vector2(0.1f, 0.1f);
-        contentRect.anchorMax = new Vector2(0.9f, 0.85f);
+        contentRect.anchorMin = new Vector2(0.1f, 0.08f);
+        contentRect.anchorMax = new Vector2(0.9f, 0.88f);
         contentRect.offsetMin = Vector2.zero;
         contentRect.offsetMax = Vector2.zero;
 
-        // 合体ボタン
-        CreateButton(panel.transform, "FusionButton", "合体", 22,
-            new Vector2(0.75f, 0.91f), new Vector2(0.97f, 0.99f),
+        // 道場ボタン
+        CreateButton(panel.transform, "FusionButton", "道場", 20,
+            new Vector2(0.02f, 0.02f), new Vector2(0.18f, 0.09f),
             new Color(0.6f, 0.3f, 0.8f), () =>
             {
                 if (GameManager.Instance != null)
                     GameManager.Instance.ChangeState(GameState.Fusion);
             });
 
+        // 商店ボタン
+        CreateButton(panel.transform, "ShopButton", "商店", 20,
+            new Vector2(0.20f, 0.02f), new Vector2(0.36f, 0.09f),
+            new Color(0.3f, 0.7f, 0.4f), () =>
+            {
+                if (GameManager.Instance != null)
+                    GameManager.Instance.ChangeState(GameState.Shop);
+            });
+
         // MapManagerの参照設定
         mapManager.mapContent = contentRect;
         mapManager.floorText = floorText;
+        mapManager.goldText = goldText;
+        mapManager.backgroundArea = bgRect.transform;
 
         return panel;
     }
@@ -473,7 +498,7 @@ public class ProjectSetupTool : EditorWindow
     }
 
     // ====================================
-    // 合体パネル作成
+    // 合体所（道場）パネル作成
     // ====================================
     private static GameObject CreateFusionPanel(Transform parent)
     {
@@ -481,8 +506,16 @@ public class ProjectSetupTool : EditorWindow
         panel.SetActive(false);
 
         // タイトル
-        CreateText(panel.transform, "FusionTitle", "漢字合体", 34,
-            new Vector2(0.25f, 0.9f), new Vector2(0.75f, 0.99f), new Color(0.8f, 0.6f, 1f));
+        CreateText(panel.transform, "FusionTitle", "⚔ 合体の道場 ⚔", 34,
+            new Vector2(0.2f, 0.9f), new Vector2(0.8f, 0.99f), new Color(0.8f, 0.6f, 1f));
+
+        // ゴールド表示
+        var fusionGoldText = CreateText(panel.transform, "FusionGoldText", "所持金: 50G", 22,
+            new Vector2(0.02f, 0.91f), new Vector2(0.2f, 0.99f), new Color(1f, 0.85f, 0.2f));
+
+        // コスト表示
+        var fusionCostText = CreateText(panel.transform, "FusionCostText", "合体コスト: 20G", 18,
+            new Vector2(0.78f, 0.91f), new Vector2(0.98f, 0.99f), new Color(1f, 0.6f, 0.3f));
 
         // スロット1
         var slot1Bg = CreateUIPanel(panel.transform, "Slot1", new Color(0.2f, 0.2f, 0.35f),
@@ -490,7 +523,6 @@ public class ProjectSetupTool : EditorWindow
         var slot1Text = CreateText(slot1Bg.transform, "Slot1Text", "?", 54,
             new Vector2(0, 0), new Vector2(1, 1), Color.white);
 
-        // プラス記号
         CreateText(panel.transform, "PlusText", "+", 40,
             new Vector2(0.38f, 0.65f), new Vector2(0.45f, 0.8f), Color.white);
 
@@ -500,7 +532,6 @@ public class ProjectSetupTool : EditorWindow
         var slot2Text = CreateText(slot2Bg.transform, "Slot2Text", "?", 54,
             new Vector2(0, 0), new Vector2(1, 1), Color.white);
 
-        // イコール記号
         CreateText(panel.transform, "EqualsText", "＝", 40,
             new Vector2(0.65f, 0.65f), new Vector2(0.72f, 0.8f), Color.white);
 
@@ -512,7 +543,7 @@ public class ProjectSetupTool : EditorWindow
         var resultDescText = CreateText(resultBg.transform, "ResultDescText", "カードを2枚選択", 14,
             new Vector2(0, 0), new Vector2(1, 0.35f), new Color(0.8f, 0.8f, 0.8f));
 
-        // ステータステキスト
+        // ステータス
         var statusText = CreateText(panel.transform, "StatusText", "1枚目のカードを選択してください", 20,
             new Vector2(0.05f, 0.52f), new Vector2(0.95f, 0.6f), new Color(0.7f, 0.8f, 0.9f));
 
@@ -529,22 +560,19 @@ public class ProjectSetupTool : EditorWindow
         gridLayout.spacing = new Vector2(10, 10);
         gridLayout.childAlignment = TextAnchor.UpperCenter;
 
-        // 合成ボタン
-        var fuseBtn = CreateButton(panel.transform, "FuseButton", "合成！", 24,
+        var fuseBtn = CreateButton(panel.transform, "FuseButton", "合体！", 24,
             new Vector2(0.3f, 0.02f), new Vector2(0.52f, 0.11f),
             new Color(0.6f, 0.3f, 0.8f), null);
 
-        // クリアボタン
         var clearBtn = CreateButton(panel.transform, "ClearButton", "クリア", 20,
             new Vector2(0.54f, 0.02f), new Vector2(0.72f, 0.11f),
             new Color(0.5f, 0.5f, 0.5f), null);
 
-        // 戻るボタン
         var backBtn = CreateButton(panel.transform, "BackButton", "戻る", 20,
             new Vector2(0.74f, 0.02f), new Vector2(0.92f, 0.11f),
             new Color(0.4f, 0.4f, 0.5f), null);
 
-        // FusionUI コンポーネント追加
+        // FusionUI コンポーネント
         var fusionUI = panel.AddComponent<FusionUI>();
         fusionUI.slot1Image = slot1Bg.GetComponent<Image>();
         fusionUI.slot1Text = slot1Text;
@@ -558,6 +586,52 @@ public class ProjectSetupTool : EditorWindow
         fusionUI.backButton = backBtn.GetComponent<Button>();
         fusionUI.cardListArea = listRect;
         fusionUI.statusText = statusText;
+        fusionUI.goldText = fusionGoldText;
+        fusionUI.costText = fusionCostText;
+
+        return panel;
+    }
+
+    // ====================================
+    // ショップパネル作成
+    // ====================================
+    private static GameObject CreateShopPanel(Transform parent)
+    {
+        var panel = CreatePanel(parent, "ShopPanel", new Color(0.08f, 0.12f, 0.08f, 0.95f));
+        panel.SetActive(false);
+
+        var titleText = CreateText(panel.transform, "ShopTitle", "🏪 商店 🏪", 34,
+            new Vector2(0.25f, 0.88f), new Vector2(0.75f, 0.98f), new Color(0.4f, 1f, 0.5f));
+
+        var shopGoldText = CreateText(panel.transform, "ShopGoldText", "所持金: 50G", 24,
+            new Vector2(0.02f, 0.88f), new Vector2(0.25f, 0.98f), new Color(1f, 0.85f, 0.2f));
+
+        var shopStatusText = CreateText(panel.transform, "ShopStatusText", "カードを選んで購入しよう", 20,
+            new Vector2(0.1f, 0.78f), new Vector2(0.9f, 0.87f), new Color(0.8f, 0.9f, 0.8f));
+
+        var cardArea = new GameObject("ShopCardArea");
+        cardArea.transform.SetParent(panel.transform, false);
+        var cardRect = cardArea.AddComponent<RectTransform>();
+        cardRect.anchorMin = new Vector2(0.05f, 0.15f);
+        cardRect.anchorMax = new Vector2(0.95f, 0.76f);
+        cardRect.offsetMin = Vector2.zero;
+        cardRect.offsetMax = Vector2.zero;
+        var hlg = cardArea.AddComponent<HorizontalLayoutGroup>();
+        hlg.spacing = 20;
+        hlg.childAlignment = TextAnchor.MiddleCenter;
+        hlg.childForceExpandWidth = false;
+        hlg.childForceExpandHeight = false;
+
+        var shopBackBtn = CreateButton(panel.transform, "ShopBackButton", "戻る", 22,
+            new Vector2(0.38f, 0.03f), new Vector2(0.62f, 0.12f),
+            new Color(0.4f, 0.5f, 0.4f), null);
+
+        var shopUI = panel.AddComponent<ShopUI>();
+        shopUI.cardListArea = cardRect;
+        shopUI.goldText = shopGoldText;
+        shopUI.titleText = titleText;
+        shopUI.statusText = shopStatusText;
+        shopUI.backButton = shopBackBtn.GetComponent<Button>();
 
         return panel;
     }
@@ -566,7 +640,7 @@ public class ProjectSetupTool : EditorWindow
     // 参照の割り当て
     // ====================================
     private static void AssignReferences(GameManager gm, BattleManager bm, MapManager mm, KanjiFusionEngine fe,
-        GameObject mapPanel, GameObject battlePanel, GameObject fusionPanel)
+        GameObject mapPanel, GameObject battlePanel, GameObject fusionPanel, GameObject shopPanel)
     {
         gm.battleManager = bm;
         gm.mapManager = mm;
@@ -574,6 +648,7 @@ public class ProjectSetupTool : EditorWindow
         gm.mapPanel = mapPanel;
         gm.battlePanel = battlePanel;
         gm.fusionPanel = fusionPanel;
+        gm.shopPanel = shopPanel;
 
         // ランタイムUIコンポーネントにAppFont参照を割り当て
         if (appFont != null)
@@ -589,6 +664,9 @@ public class ProjectSetupTool : EditorWindow
 
             var fusionUI = fusionPanel.GetComponent<FusionUI>();
             if (fusionUI != null) fusionUI.appFont = appFont;
+
+            var shopUI = shopPanel.GetComponent<ShopUI>();
+            if (shopUI != null) shopUI.appFont = appFont;
         }
         else
         {

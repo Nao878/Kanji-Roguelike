@@ -4,7 +4,9 @@ using UnityEngine.UI;
 using TMPro;
 
 /// <summary>
-/// 漢字合体画面UI
+/// 合体所（道場）- デッキ構築型
+/// デッキから2枚選択して消費し、進化カードを1枚獲得
+/// ゴールド（合体コスト）が必要
 /// </summary>
 public class FusionUI : MonoBehaviour
 {
@@ -27,6 +29,8 @@ public class FusionUI : MonoBehaviour
     [Header("カード一覧")]
     public Transform cardListArea;
     public TextMeshProUGUI statusText;
+    public TextMeshProUGUI goldText;
+    public TextMeshProUGUI costText;
 
     [Header("フォント")]
     public TMP_FontAsset appFont;
@@ -46,14 +50,14 @@ public class FusionUI : MonoBehaviour
     {
         RefreshCardList();
         ClearSlots();
+        UpdateGoldDisplay();
     }
 
     /// <summary>
-    /// 手札のカード一覧を更新
+    /// デッキ全体のカード一覧を表示
     /// </summary>
     public void RefreshCardList()
     {
-        // 既存UIクリア
         foreach (var ui in cardListUIs)
         {
             if (ui != null) Destroy(ui.gameObject);
@@ -63,10 +67,11 @@ public class FusionUI : MonoBehaviour
         var gm = GameManager.Instance;
         if (gm == null) return;
 
-        // デッキ全体のカードを表示（合体用）
+        // デッキ＋手札＋捨て札の全所持カードを表示
         var allCards = new List<KanjiCardData>();
         allCards.AddRange(gm.deck);
         allCards.AddRange(gm.hand);
+        allCards.AddRange(gm.discardPile);
 
         foreach (var card in allCards)
         {
@@ -76,9 +81,6 @@ public class FusionUI : MonoBehaviour
         UpdateStatus();
     }
 
-    /// <summary>
-    /// カードボタンを作成
-    /// </summary>
     private void CreateCardButton(KanjiCardData data)
     {
         if (cardListArea == null || data == null) return;
@@ -94,7 +96,6 @@ public class FusionUI : MonoBehaviour
 
         var button = go.AddComponent<Button>();
 
-        // 漢字テキスト
         var textGo = new GameObject("Text");
         textGo.transform.SetParent(go.transform, false);
         var text = textGo.AddComponent<TextMeshProUGUI>();
@@ -120,9 +121,6 @@ public class FusionUI : MonoBehaviour
         cardListUIs.Add(cardUI);
     }
 
-    /// <summary>
-    /// カードが選択された時
-    /// </summary>
     private void OnCardSelected(KanjiCardData card)
     {
         if (selectedCard1 == null)
@@ -136,26 +134,18 @@ public class FusionUI : MonoBehaviour
             selectedCard2 = card;
             UpdateSlot(slot2Image, slot2Text, card);
             Debug.Log($"[FusionUI] スロット2に『{card.kanji}』をセット");
-
-            // 合成可能かチェック
             CheckFusionPossible();
         }
 
         UpdateStatus();
     }
 
-    /// <summary>
-    /// スロットのUI更新
-    /// </summary>
     private void UpdateSlot(Image slotImage, TextMeshProUGUI slotText, KanjiCardData card)
     {
         if (slotImage != null) slotImage.color = new Color(0.3f, 0.5f, 0.7f, 0.9f);
         if (slotText != null) slotText.text = card != null ? card.kanji : "?";
     }
 
-    /// <summary>
-    /// 合成可能かチェックしてプレビュー
-    /// </summary>
     private void CheckFusionPossible()
     {
         var gm = GameManager.Instance;
@@ -164,7 +154,9 @@ public class FusionUI : MonoBehaviour
         if (selectedCard1 != null && selectedCard2 != null)
         {
             bool canFuse = gm.fusionEngine.CanFuse(selectedCard1, selectedCard2);
-            if (fuseButton != null) fuseButton.interactable = canFuse;
+            bool canAfford = gm.playerGold >= gm.fusionCost;
+
+            if (fuseButton != null) fuseButton.interactable = canFuse && canAfford;
 
             if (canFuse)
             {
@@ -173,6 +165,11 @@ public class FusionUI : MonoBehaviour
                 {
                     resultText.text = result.kanji;
                     if (resultDescText != null) resultDescText.text = result.description;
+                }
+
+                if (!canAfford)
+                {
+                    if (statusText != null) statusText.text = $"ゴールド不足！（必要: {gm.fusionCost}G）";
                 }
             }
             else
@@ -184,48 +181,59 @@ public class FusionUI : MonoBehaviour
     }
 
     /// <summary>
-    /// 合成実行ボタン
+    /// 合成実行（ゴールド消費）
     /// </summary>
     private void OnFuseClicked()
     {
         var gm = GameManager.Instance;
         if (gm == null || gm.fusionEngine == null) return;
-
         if (selectedCard1 == null || selectedCard2 == null) return;
+
+        // ゴールドチェック
+        if (gm.playerGold < gm.fusionCost)
+        {
+            if (statusText != null) statusText.text = $"ゴールドが足りない！（必要: {gm.fusionCost}G）";
+            return;
+        }
 
         var result = gm.fusionEngine.TryFuse(selectedCard1, selectedCard2);
         if (result != null)
         {
-            // デッキから素材カードを除去し、結果カードを追加
-            gm.deck.Remove(selectedCard1);
-            gm.hand.Remove(selectedCard1);
-            gm.deck.Remove(selectedCard2);
-            gm.hand.Remove(selectedCard2);
+            // ゴールド消費
+            gm.playerGold -= gm.fusionCost;
+
+            // デッキから素材カードを除去（全リストから探す）
+            RemoveCardFromAllPiles(gm, selectedCard1);
+            RemoveCardFromAllPiles(gm, selectedCard2);
+
+            // 結果カードをデッキに追加
             gm.deck.Add(result);
 
-            Debug.Log($"[FusionUI] 合成完了！ 『{selectedCard1.kanji}』+『{selectedCard2.kanji}』=『{result.kanji}』");
+            Debug.Log($"[FusionUI] 合体完了！ 『{selectedCard1.kanji}』+『{selectedCard2.kanji}』=『{result.kanji}』 ({gm.fusionCost}G消費)");
 
             if (statusText != null)
             {
-                statusText.text = $"合成成功！ 『{result.kanji}』を獲得！";
+                statusText.text = $"合体成功！ 『{result.kanji}』を獲得！ (-{gm.fusionCost}G)";
             }
 
             ClearSlots();
             RefreshCardList();
+            UpdateGoldDisplay();
         }
     }
 
-    /// <summary>
-    /// スロットクリア
-    /// </summary>
+    private void RemoveCardFromAllPiles(GameManager gm, KanjiCardData card)
+    {
+        if (gm.deck.Remove(card)) return;
+        if (gm.hand.Remove(card)) return;
+        gm.discardPile.Remove(card);
+    }
+
     private void OnClearClicked()
     {
         ClearSlots();
     }
 
-    /// <summary>
-    /// スロットをクリア
-    /// </summary>
     private void ClearSlots()
     {
         selectedCard1 = null;
@@ -238,22 +246,32 @@ public class FusionUI : MonoBehaviour
         UpdateStatus();
     }
 
-    /// <summary>
-    /// ステータステキストを更新
-    /// </summary>
     private void UpdateStatus()
     {
         if (statusText == null) return;
 
+        var gm = GameManager.Instance;
+        int cost = gm != null ? gm.fusionCost : 0;
+
         if (selectedCard1 == null)
-            statusText.text = "1枚目のカードを選択してください";
+            statusText.text = $"合体コスト: {cost}G — 1枚目のカードを選択";
         else if (selectedCard2 == null)
-            statusText.text = $"『{selectedCard1.kanji}』選択中 — 2枚目を選択してください";
+            statusText.text = $"『{selectedCard1.kanji}』選択中 — 2枚目を選択（{cost}G）";
+
+        if (costText != null)
+            costText.text = $"合体コスト: {cost}G";
+
+        UpdateGoldDisplay();
     }
 
-    /// <summary>
-    /// 戻るボタン
-    /// </summary>
+    private void UpdateGoldDisplay()
+    {
+        if (goldText != null && GameManager.Instance != null)
+        {
+            goldText.text = $"所持金: {GameManager.Instance.playerGold}G";
+        }
+    }
+
     private void OnBackClicked()
     {
         if (GameManager.Instance != null)
