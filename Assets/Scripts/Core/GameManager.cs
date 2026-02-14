@@ -40,6 +40,7 @@ public class GameManager : MonoBehaviour
     public GameObject battlePanel;
     public GameObject fusionPanel;
     public GameObject shopPanel;
+    public GameObject dojoPanel;
 
     // 合成レシピDictionary（高速検索用）
     private Dictionary<(int, int), int> fusionRecipeDict = new Dictionary<(int, int), int>();
@@ -94,6 +95,7 @@ public class GameManager : MonoBehaviour
         if (battlePanel != null) battlePanel.SetActive(newState == GameState.Battle);
         if (fusionPanel != null) fusionPanel.SetActive(newState == GameState.Fusion);
         if (shopPanel != null) shopPanel.SetActive(newState == GameState.Shop);
+        if (dojoPanel != null) dojoPanel.SetActive(newState == GameState.Dojo);
 
         switch (newState)
         {
@@ -288,5 +290,6 @@ public enum GameState
     Fusion,
     Shop,
     Event,
+    Dojo,
     GameOver
 }

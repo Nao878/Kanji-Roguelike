@@ -57,9 +57,10 @@ public class ProjectSetupTool : EditorWindow
         var battlePanel = CreateBattlePanel(canvas.transform, battleManager);
         var fusionPanel = CreateFusionPanel(canvas.transform);
         var shopPanel = CreateShopPanel(canvas.transform);
+        var dojoPanel = CreateDojoPanel(canvas.transform);
 
         // 参照の割り当て
-        AssignReferences(gameManager, battleManager, mapManager, fusionEngine, mapPanel, battlePanel, fusionPanel, shopPanel);
+        AssignReferences(gameManager, battleManager, mapManager, fusionEngine, mapPanel, battlePanel, fusionPanel, shopPanel, dojoPanel);
 
         // 初期デッキ設定
         SetupInitialDeck(gameManager, cards);
@@ -380,28 +381,10 @@ public class ProjectSetupTool : EditorWindow
         var mapContent = new GameObject("MapContent");
         mapContent.transform.SetParent(panel.transform, false);
         var contentRect = mapContent.AddComponent<RectTransform>();
-        contentRect.anchorMin = new Vector2(0.1f, 0.08f);
-        contentRect.anchorMax = new Vector2(0.9f, 0.88f);
+        contentRect.anchorMin = new Vector2(0.05f, 0.03f);
+        contentRect.anchorMax = new Vector2(0.95f, 0.88f);
         contentRect.offsetMin = Vector2.zero;
         contentRect.offsetMax = Vector2.zero;
-
-        // 道場ボタン
-        CreateButton(panel.transform, "FusionButton", "道場", 20,
-            new Vector2(0.02f, 0.02f), new Vector2(0.18f, 0.09f),
-            new Color(0.6f, 0.3f, 0.8f), () =>
-            {
-                if (GameManager.Instance != null)
-                    GameManager.Instance.ChangeState(GameState.Fusion);
-            });
-
-        // 商店ボタン
-        CreateButton(panel.transform, "ShopButton", "商店", 20,
-            new Vector2(0.20f, 0.02f), new Vector2(0.36f, 0.09f),
-            new Color(0.3f, 0.7f, 0.4f), () =>
-            {
-                if (GameManager.Instance != null)
-                    GameManager.Instance.ChangeState(GameState.Shop);
-            });
 
         // MapManagerの参照設定
         mapManager.mapContent = contentRect;
@@ -637,10 +620,82 @@ public class ProjectSetupTool : EditorWindow
     }
 
     // ====================================
+    // 道場パネル（山札編集画面）作成
+    // ====================================
+    private static GameObject CreateDojoPanel(Transform parent)
+    {
+        var panel = CreatePanel(parent, "DojoPanel", new Color(0.12f, 0.1f, 0.06f, 0.96f));
+        panel.SetActive(false);
+
+        // タイトル
+        var titleText = CreateText(panel.transform, "DojoTitle", "⛩ 道場 ⛩", 34,
+            new Vector2(0.2f, 0.88f), new Vector2(0.8f, 0.98f), new Color(0.9f, 0.7f, 0.3f));
+
+        // ステータス（精神統一テキスト）
+        var statusText = CreateText(panel.transform, "DojoStatusText",
+            "── 精神統一 ──\n心を静め、山札を見極めよ…", 18,
+            new Vector2(0.1f, 0.78f), new Vector2(0.9f, 0.87f), new Color(0.8f, 0.8f, 0.7f));
+
+        // デッキ枚数
+        var deckCountText = CreateText(panel.transform, "DojoDeckCount", "山札: 10枚", 20,
+            new Vector2(0.02f, 0.88f), new Vector2(0.2f, 0.98f), new Color(0.7f, 0.8f, 0.9f));
+
+        // カード一覧エリア
+        var cardArea = new GameObject("DojoCardArea");
+        cardArea.transform.SetParent(panel.transform, false);
+        var cardRect = cardArea.AddComponent<RectTransform>();
+        cardRect.anchorMin = new Vector2(0.03f, 0.15f);
+        cardRect.anchorMax = new Vector2(0.97f, 0.76f);
+        cardRect.offsetMin = Vector2.zero;
+        cardRect.offsetMax = Vector2.zero;
+        var gridLayout = cardArea.AddComponent<GridLayoutGroup>();
+        gridLayout.cellSize = new Vector2(100, 140);
+        gridLayout.spacing = new Vector2(12, 12);
+        gridLayout.childAlignment = TextAnchor.UpperCenter;
+
+        // 確認ダイアログ
+        var confirmPanel = CreateUIPanel(panel.transform, "ConfirmPanel",
+            new Color(0.05f, 0.05f, 0.05f, 0.92f),
+            new Vector2(0.2f, 0.3f), new Vector2(0.8f, 0.7f));
+        confirmPanel.SetActive(false);
+
+        var confirmText = CreateText(confirmPanel.transform, "ConfirmText",
+            "このカードを追放しますか？", 22,
+            new Vector2(0.05f, 0.35f), new Vector2(0.95f, 0.9f), Color.white);
+
+        var yesBtn = CreateButton(confirmPanel.transform, "ConfirmYes", "追放する", 22,
+            new Vector2(0.1f, 0.08f), new Vector2(0.45f, 0.3f),
+            new Color(0.8f, 0.2f, 0.2f), null);
+
+        var noBtn = CreateButton(confirmPanel.transform, "ConfirmNo", "やめる", 22,
+            new Vector2(0.55f, 0.08f), new Vector2(0.9f, 0.3f),
+            new Color(0.4f, 0.4f, 0.5f), null);
+
+        // 戻るボタン
+        var backBtn = CreateButton(panel.transform, "DojoBackButton", "戻る", 22,
+            new Vector2(0.38f, 0.03f), new Vector2(0.62f, 0.12f),
+            new Color(0.5f, 0.4f, 0.3f), null);
+
+        // DeckEditUI コンポーネント
+        var deckEditUI = panel.AddComponent<DeckEditUI>();
+        deckEditUI.cardListArea = cardRect;
+        deckEditUI.titleText = titleText;
+        deckEditUI.statusText = statusText;
+        deckEditUI.deckCountText = deckCountText;
+        deckEditUI.backButton = backBtn.GetComponent<Button>();
+        deckEditUI.confirmPanel = confirmPanel;
+        deckEditUI.confirmText = confirmText;
+        deckEditUI.confirmYesButton = yesBtn.GetComponent<Button>();
+        deckEditUI.confirmNoButton = noBtn.GetComponent<Button>();
+
+        return panel;
+    }
+
+    // ====================================
     // 参照の割り当て
     // ====================================
     private static void AssignReferences(GameManager gm, BattleManager bm, MapManager mm, KanjiFusionEngine fe,
-        GameObject mapPanel, GameObject battlePanel, GameObject fusionPanel, GameObject shopPanel)
+        GameObject mapPanel, GameObject battlePanel, GameObject fusionPanel, GameObject shopPanel, GameObject dojoPanel)
     {
         gm.battleManager = bm;
         gm.mapManager = mm;
@@ -649,6 +704,7 @@ public class ProjectSetupTool : EditorWindow
         gm.battlePanel = battlePanel;
         gm.fusionPanel = fusionPanel;
         gm.shopPanel = shopPanel;
+        gm.dojoPanel = dojoPanel;
 
         // ランタイムUIコンポーネントにAppFont参照を割り当て
         if (appFont != null)
@@ -667,6 +723,9 @@ public class ProjectSetupTool : EditorWindow
 
             var shopUI = shopPanel.GetComponent<ShopUI>();
             if (shopUI != null) shopUI.appFont = appFont;
+
+            var deckEditUI = dojoPanel.GetComponent<DeckEditUI>();
+            if (deckEditUI != null) deckEditUI.appFont = appFont;
         }
         else
         {

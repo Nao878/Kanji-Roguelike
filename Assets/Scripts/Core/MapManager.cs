@@ -6,6 +6,7 @@ using TMPro;
 /// <summary>
 /// 漢字マップシステム - Slay the Spire風ボトムからトップへ進むルートマップ
 /// 背景に地形漢字を散りばめた和風デザイン
+/// 選択可能ノードの点滅・大将拡大・川の流れアニメ対応
 /// </summary>
 public class MapManager : MonoBehaviour
 {
@@ -28,6 +29,8 @@ public class MapManager : MonoBehaviour
     // マップデータ
     private List<List<MapNode>> mapData = new List<List<MapNode>>();
     private List<GameObject> backgroundKanjis = new List<GameObject>();
+    private List<RectTransform> riverKanjis = new List<RectTransform>();
+    private List<CanvasGroup> blinkingNodes = new List<CanvasGroup>();
 
     [System.Serializable]
     public class MapNode
@@ -48,7 +51,8 @@ public class MapManager : MonoBehaviour
         Elite,
         Shop,
         Event,
-        Boss
+        Boss,
+        Dojo
     }
 
     /// <summary>
@@ -102,10 +106,11 @@ public class MapManager : MonoBehaviour
         if (layer == totalLayers - 1) return NodeType.Boss;
 
         float rand = Random.value;
-        if (rand < 0.4f) return NodeType.Battle;
-        if (rand < 0.6f) return NodeType.Event;
-        if (rand < 0.75f) return NodeType.Elite;
-        return NodeType.Shop;
+        if (rand < 0.35f) return NodeType.Battle;
+        if (rand < 0.55f) return NodeType.Event;
+        if (rand < 0.70f) return NodeType.Elite;
+        if (rand < 0.85f) return NodeType.Shop;
+        return NodeType.Dojo;
     }
 
     /// <summary>
@@ -124,86 +129,98 @@ public class MapManager : MonoBehaviour
     /// </summary>
     private void CreateBackgroundKanji()
     {
-        // 既存の背景漢字をクリア
+        // 既存の背景漢字を削除
         foreach (var go in backgroundKanjis)
         {
             if (go != null) Destroy(go);
         }
         backgroundKanjis.Clear();
+        riverKanjis.Clear();
 
-        if (backgroundArea == null) return;
+        Transform parent = backgroundArea != null ? backgroundArea : (mapContent != null ? mapContent : transform);
 
-        string[] terrainKanji = { "山", "川", "森", "草", "岩", "泉", "丘", "谷", "湖", "野", "峠", "崖", "沼", "原", "峰" };
-        Color[] terrainColors = {
-            new Color(0.25f, 0.22f, 0.18f, 0.35f),  // 山 - 茶系
-            new Color(0.15f, 0.22f, 0.30f, 0.35f),  // 川 - 青系
-            new Color(0.15f, 0.25f, 0.15f, 0.35f),  // 森 - 緑系
+        string[,] terrainMap = new string[14, 8]
+        {
+            {"山","峰","山","岩","山","峰","山","岩"},
+            {"峰","山","岩","山","峰","山","岩","山"},
+            {"森","林","川","森","林","森","川","森"},
+            {"林","森","川","林","森","林","川","林"},
+            {"森","草","川","森","草","森","川","森"},
+            {"草","森","川","草","森","草","川","草"},
+            {"草","原","川","草","原","草","川","草"},
+            {"原","草","川","原","草","原","川","原"},
+            {"草","野","川","草","野","草","川","草"},
+            {"野","草","川","野","草","野","川","野"},
+            {"丘","原","川","丘","原","丘","川","丘"},
+            {"原","丘","川","原","丘","原","川","原"},
+            {"草","原","川","草","原","草","川","草"},
+            {"原","野","川","原","野","原","川","原"}
         };
 
-        // 密集したテクスチャのように配置
-        int cols = 14;
-        int rows = 8;
-
-        RectTransform bgRect = backgroundArea.GetComponent<RectTransform>();
-        if (bgRect == null) return;
-
-        for (int row = 0; row < rows; row++)
+        for (int row = 0; row < 14; row++)
         {
-            for (int col = 0; col < cols; col++)
+            for (int col = 0; col < 8; col++)
             {
+                string kanji = terrainMap[row, col];
                 var go = new GameObject($"BgKanji_{row}_{col}");
-                go.transform.SetParent(backgroundArea, false);
+                go.transform.SetParent(parent, false);
 
                 var rect = go.AddComponent<RectTransform>();
-                float xNorm = (col + 0.5f) / cols;
-                float yNorm = (row + 0.5f) / rows;
-                // 少しランダムにずらす
-                xNorm += Random.Range(-0.02f, 0.02f);
-                yNorm += Random.Range(-0.02f, 0.02f);
-
-                rect.anchorMin = new Vector2(xNorm - 0.03f, yNorm - 0.05f);
-                rect.anchorMax = new Vector2(xNorm + 0.03f, yNorm + 0.05f);
+                float xNorm = (col + 0.5f) / 8f;
+                float yNorm = (row + 0.5f) / 14f;
+                rect.anchorMin = new Vector2(xNorm - 0.06f, yNorm - 0.035f);
+                rect.anchorMax = new Vector2(xNorm + 0.06f, yNorm + 0.035f);
                 rect.offsetMin = Vector2.zero;
                 rect.offsetMax = Vector2.zero;
 
                 var text = go.AddComponent<TextMeshProUGUI>();
-                // 川を縦に並べて流れを表現
-                if (col == 4 || col == 10)
-                {
-                    text.text = "川";
-                    text.color = new Color(0.15f, 0.25f, 0.35f, 0.4f);
-                }
-                // 山を上部に集中
-                else if (row >= rows - 2)
-                {
-                    text.text = Random.value > 0.3f ? "山" : "峰";
-                    text.color = new Color(0.28f, 0.24f, 0.20f, 0.35f);
-                }
-                // 森を中央に
-                else if (row >= 2 && row < rows - 2)
-                {
-                    string[] midKanji = { "森", "林", "草", "木", "野" };
-                    text.text = midKanji[Random.Range(0, midKanji.Length)];
-                    text.color = new Color(0.18f, 0.28f, 0.18f, 0.3f);
-                }
-                // 下部は草原
-                else
-                {
-                    string[] lowKanji = { "草", "原", "野", "丘" };
-                    text.text = lowKanji[Random.Range(0, lowKanji.Length)];
-                    text.color = new Color(0.22f, 0.28f, 0.20f, 0.25f);
-                }
-
-                text.fontSize = 22;
+                text.text = kanji;
+                text.fontSize = 16;
                 text.alignment = TextAlignmentOptions.Center;
                 text.raycastTarget = false;
                 if (appFont != null) text.font = appFont;
 
-                // ランダムに少し回転
-                go.transform.rotation = Quaternion.Euler(0, 0, Random.Range(-8f, 8f));
+                // 地形に応じた色
+                if (kanji == "山" || kanji == "峰" || kanji == "岩")
+                    text.color = new Color(0.35f, 0.3f, 0.25f, 0.15f);
+                else if (kanji == "川")
+                    text.color = new Color(0.2f, 0.4f, 0.7f, 0.2f);
+                else if (kanji == "森" || kanji == "林")
+                    text.color = new Color(0.2f, 0.4f, 0.2f, 0.15f);
+                else
+                    text.color = new Color(0.3f, 0.35f, 0.25f, 0.12f);
 
                 backgroundKanjis.Add(go);
+
+                // 川の漢字をアニメーション対象に登録
+                if (kanji == "川")
+                {
+                    riverKanjis.Add(rect);
+                }
             }
+        }
+    }
+
+    /// <summary>
+    /// 川のスクロールアニメーション + 点滅ノードアニメーション
+    /// </summary>
+    private void Update()
+    {
+        // 川の流れ（上→下へゆっくりスクロール）
+        float riverSpeed = 0.003f;
+        foreach (var riverRect in riverKanjis)
+        {
+            if (riverRect == null) continue;
+            float offsetY = Mathf.Sin(Time.time * 0.8f + riverRect.anchorMin.x * 10f) * riverSpeed;
+            riverRect.anchorMin = new Vector2(riverRect.anchorMin.x, riverRect.anchorMin.y + offsetY);
+            riverRect.anchorMax = new Vector2(riverRect.anchorMax.x, riverRect.anchorMax.y + offsetY);
+        }
+
+        // 選択可能ノードの点滅
+        float alpha = 0.7f + Mathf.PingPong(Time.time * 0.8f, 0.3f);
+        foreach (var cg in blinkingNodes)
+        {
+            if (cg != null) cg.alpha = alpha;
         }
     }
 
@@ -220,6 +237,16 @@ public class MapManager : MonoBehaviour
             foreach (var node in layer)
             {
                 if (node.uiObject != null) Destroy(node.uiObject);
+            }
+        }
+        blinkingNodes.Clear();
+
+        // 接続線を先に削除
+        foreach (Transform child in mapContent)
+        {
+            if (child.name.StartsWith("Line_"))
+            {
+                Destroy(child.gameObject);
             }
         }
 
@@ -244,6 +271,7 @@ public class MapManager : MonoBehaviour
 
     /// <summary>
     /// ノードUIを作成（漢字ラベル＋枠線デザイン）
+    /// 大将は1.5倍サイズ、選択可能ノードは点滅
     /// </summary>
     private void CreateNodeUI(MapNode node, int layer, int index)
     {
@@ -258,25 +286,40 @@ public class MapManager : MonoBehaviour
         float xOffset = (index - (nodeCount - 1) / 2f) * 140f;
         float yOffset = layer * 70f - ((totalLayers - 1) * 35f);
         rect.anchoredPosition = new Vector2(xOffset, yOffset);
-        rect.sizeDelta = new Vector2(110f, 50f);
+
+        // 大将ノードは拡大
+        bool isBoss = node.nodeType == NodeType.Boss;
+        float w = isBoss ? 140f : 110f;
+        float h = isBoss ? 65f : 50f;
+        rect.sizeDelta = new Vector2(w, h);
+
+        // CanvasGroupで点滅制御
+        var canvasGroup = go.AddComponent<CanvasGroup>();
 
         // 外枠（Border）
         var borderImage = go.AddComponent<Image>();
-        // 背景色と枠線色を設定
         Color nodeColor = GetNodeColor(node.nodeType);
-        Color borderColor = new Color(nodeColor.r + 0.2f, nodeColor.g + 0.2f, nodeColor.b + 0.2f, 1f);
+        Color borderColor = new Color(
+            Mathf.Min(1f, nodeColor.r + 0.2f),
+            Mathf.Min(1f, nodeColor.g + 0.2f),
+            Mathf.Min(1f, nodeColor.b + 0.2f), 1f);
 
         if (node.isVisited)
         {
             borderImage.color = new Color(0.25f, 0.25f, 0.25f, 0.6f);
+            canvasGroup.alpha = 0.4f;
         }
         else if (node.isAccessible)
         {
             borderImage.color = borderColor;
+            canvasGroup.alpha = 1f;
+            // 点滅リストに追加
+            blinkingNodes.Add(canvasGroup);
         }
         else
         {
             borderImage.color = new Color(nodeColor.r * 0.3f, nodeColor.g * 0.3f, nodeColor.b * 0.3f, 0.5f);
+            canvasGroup.alpha = 0.3f;
         }
 
         // 内側背景
@@ -302,7 +345,7 @@ public class MapManager : MonoBehaviour
         textGo.transform.SetParent(go.transform, false);
         var text = textGo.AddComponent<TextMeshProUGUI>();
         text.text = GetNodeLabel(node.nodeType);
-        text.fontSize = 22;
+        text.fontSize = isBoss ? 30 : 22;
         text.alignment = TextAlignmentOptions.Center;
         text.fontStyle = FontStyles.Bold;
         text.color = node.isAccessible ? Color.white : new Color(0.5f, 0.5f, 0.5f);
@@ -330,15 +373,6 @@ public class MapManager : MonoBehaviour
     {
         if (mapContent == null) return;
 
-        // 既存の接続線を削除
-        foreach (Transform child in mapContent)
-        {
-            if (child.name.StartsWith("Line_"))
-            {
-                Destroy(child.gameObject);
-            }
-        }
-
         for (int layer = 0; layer < mapData.Count - 1; layer++)
         {
             for (int n = 0; n < mapData[layer].Count; n++)
@@ -347,7 +381,8 @@ public class MapManager : MonoBehaviour
                 if (node.uiObject == null) continue;
 
                 var fromRect = node.uiObject.GetComponent<RectTransform>();
-                Vector2 fromPos = fromRect.anchoredPosition + new Vector2(0, 25f);
+                float fromHalfH = fromRect.sizeDelta.y / 2f;
+                Vector2 fromPos = fromRect.anchoredPosition + new Vector2(0, fromHalfH);
 
                 foreach (int connIdx in node.connections)
                 {
@@ -356,9 +391,11 @@ public class MapManager : MonoBehaviour
                     if (targetNode.uiObject == null) continue;
 
                     var toRect = targetNode.uiObject.GetComponent<RectTransform>();
-                    Vector2 toPos = toRect.anchoredPosition - new Vector2(0, 25f);
+                    float toHalfH = toRect.sizeDelta.y / 2f;
+                    Vector2 toPos = toRect.anchoredPosition - new Vector2(0, toHalfH);
 
-                    CreateLine(fromPos, toPos, node.isVisited || targetNode.isAccessible);
+                    bool isActive = node.isVisited || targetNode.isAccessible;
+                    CreateLine(fromPos, toPos, isActive);
                 }
             }
         }
@@ -376,13 +413,13 @@ public class MapManager : MonoBehaviour
 
         float distance = Vector2.Distance(from, to);
         float angle = Mathf.Atan2(to.y - from.y, to.x - from.x) * Mathf.Rad2Deg;
-        lineRect.sizeDelta = new Vector2(distance, 2f);
+        lineRect.sizeDelta = new Vector2(distance, active ? 3f : 2f);
         lineRect.rotation = Quaternion.Euler(0, 0, angle);
 
         var img = lineGo.AddComponent<Image>();
         img.color = active ?
-            new Color(0.7f, 0.7f, 0.5f, 0.6f) :
-            new Color(0.3f, 0.3f, 0.3f, 0.3f);
+            new Color(0.85f, 0.75f, 0.3f, 0.7f) :
+            new Color(0.3f, 0.3f, 0.3f, 0.2f);
         img.raycastTarget = false;
     }
 
@@ -407,6 +444,7 @@ public class MapManager : MonoBehaviour
             case NodeType.Shop:   return "商店";
             case NodeType.Event:  return "事件";
             case NodeType.Boss:   return "大将";
+            case NodeType.Dojo:   return "道場";
             default: return "？";
         }
     }
@@ -421,6 +459,7 @@ public class MapManager : MonoBehaviour
             case NodeType.Shop:   return new Color(0.3f, 0.8f, 0.4f);
             case NodeType.Event:  return new Color(0.6f, 0.4f, 0.8f);
             case NodeType.Boss:   return new Color(0.9f, 0.2f, 0.2f);
+            case NodeType.Dojo:   return new Color(0.8f, 0.5f, 0.2f);
             default: return Color.gray;
         }
     }
@@ -458,6 +497,13 @@ public class MapManager : MonoBehaviour
                 if (GameManager.Instance != null)
                 {
                     GameManager.Instance.ChangeState(GameState.Shop);
+                }
+                break;
+
+            case NodeType.Dojo:
+                if (GameManager.Instance != null)
+                {
+                    GameManager.Instance.ChangeState(GameState.Dojo);
                 }
                 break;
 
