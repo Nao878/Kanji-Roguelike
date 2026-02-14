@@ -33,6 +33,39 @@ public class KanjiCardData : ScriptableObject
     [Header("合成情報")]
     [Tooltip("合成で生まれたカードかどうか")]
     public bool isFusionResult = false;
+
+    [Header("鍛錬による強化値")]
+    [Tooltip("攻撃力強化値（鍛錬で増加）")]
+    public int attackModifier = 0;
+
+    [Tooltip("防御力強化値（鍛錬で増加）")]
+    public int defenseModifier = 0;
+
+    /// <summary>
+    /// 実効攻撃値（基本値＋強化値）
+    /// </summary>
+    public int GetEffectiveAttack()
+    {
+        return effectValue + attackModifier;
+    }
+
+    /// <summary>
+    /// 実効防御値（基本値＋強化値）
+    /// </summary>
+    public int GetEffectiveDefense()
+    {
+        return effectValue + defenseModifier;
+    }
+
+    /// <summary>
+    /// 強化済みかどうか
+    /// </summary>
+    public bool IsEnhanced => attackModifier > 0 || defenseModifier > 0;
+
+    /// <summary>
+    /// 表示名（強化済みなら＋付き）
+    /// </summary>
+    public string DisplayName => IsEnhanced ? $"{kanji}＋" : kanji;
 }
 
 /// <summary>
@@ -44,5 +77,6 @@ public enum CardEffectType
     Defense,  // 防御
     Heal,     // 回復
     Buff,     // バフ
-    Special   // 特殊
+    Special,  // 特殊
+    Draw      // ドロー
 }

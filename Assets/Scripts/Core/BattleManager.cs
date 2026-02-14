@@ -107,37 +107,48 @@ public class BattleManager : MonoBehaviour
     private void ApplyCardEffect(KanjiCardData card)
     {
         var gm = GameManager.Instance;
-        int value = card.effectValue + (card.effectType == CardEffectType.Attack ? gm.playerAttackBuff : 0);
+        // modifier対応：攻撃系はattackModifier、防御系はdefenseModifierを加算
+        int attackValue = card.effectValue + card.attackModifier + (card.effectType == CardEffectType.Attack ? gm.playerAttackBuff : 0);
+        int defenseValue = card.effectValue + card.defenseModifier;
 
         switch (card.effectType)
         {
             case CardEffectType.Attack:
-                enemyCurrentHP = Mathf.Max(0, enemyCurrentHP - value);
-                AddBattleLog($"『{card.kanji}』で{value}ダメージ！");
-                Debug.Log($"[BattleManager] 敵に{value}ダメージ 残りHP:{enemyCurrentHP}");
+                enemyCurrentHP = Mathf.Max(0, enemyCurrentHP - attackValue);
+                AddBattleLog($"『{card.DisplayName}』で{attackValue}ダメージ！");
+                Debug.Log($"[BattleManager] 敵に{attackValue}ダメージ 残りHP:{enemyCurrentHP}");
                 break;
 
             case CardEffectType.Defense:
-                gm.playerDefenseBuff += card.effectValue;
-                AddBattleLog($"『{card.kanji}』で防御力+{card.effectValue}！");
+                gm.playerDefenseBuff += defenseValue;
+                AddBattleLog($"『{card.DisplayName}』で防御力+{defenseValue}！");
                 break;
 
             case CardEffectType.Heal:
-                gm.playerHP = Mathf.Min(gm.playerMaxHP, gm.playerHP + card.effectValue);
-                AddBattleLog($"『{card.kanji}』でHP{card.effectValue}回復！");
+                int healVal = card.effectValue + card.defenseModifier;
+                gm.playerHP = Mathf.Min(gm.playerMaxHP, gm.playerHP + healVal);
+                AddBattleLog($"『{card.DisplayName}』でHP{healVal}回復！");
                 break;
 
             case CardEffectType.Buff:
-                gm.playerAttackBuff += card.effectValue;
-                AddBattleLog($"『{card.kanji}』で攻撃力+{card.effectValue}！");
+                int buffVal = card.effectValue + card.attackModifier;
+                gm.playerAttackBuff += buffVal;
+                AddBattleLog($"『{card.DisplayName}』で攻撃力+{buffVal}！");
                 break;
 
             case CardEffectType.Special:
                 // 特殊：ダメージ + 回復
-                enemyCurrentHP = Mathf.Max(0, enemyCurrentHP - card.effectValue);
-                int healAmount = Mathf.CeilToInt(card.effectValue * 0.6f);
+                int spAtkVal = card.effectValue + card.attackModifier;
+                enemyCurrentHP = Mathf.Max(0, enemyCurrentHP - spAtkVal);
+                int healAmount = Mathf.CeilToInt(spAtkVal * 0.6f);
                 gm.playerHP = Mathf.Min(gm.playerMaxHP, gm.playerHP + healAmount);
-                AddBattleLog($"『{card.kanji}』で{card.effectValue}ダメージ＋{healAmount}回復！");
+                AddBattleLog($"『{card.DisplayName}』で{spAtkVal}ダメージ＋{healAmount}回復！");
+                break;
+
+            case CardEffectType.Draw:
+                int drawCount = card.effectValue;
+                gm.DrawCards(drawCount);
+                AddBattleLog($"『{card.DisplayName}』でカードを{drawCount}枚ドロー！");
                 break;
         }
     }

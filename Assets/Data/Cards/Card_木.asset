@@ -20,3 +20,5 @@ MonoBehaviour:
   effectValue: 3
   effectType: 0
   isFusionResult: 0
+  attackModifier: 0
+  defenseModifier: 0

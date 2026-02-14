@@ -5,17 +5,29 @@ using TMPro;
 
 /// <summary>
 /// 道場 - 山札編集画面
-/// デッキからカードを1枚追放（削除）できる
-/// 「精神統一」の演出テキスト付き
+/// 「追放」モード：デッキからカードを削除
+/// 「鍛錬」モード：カードを強化（攻撃/防御+2）
 /// </summary>
 public class DeckEditUI : MonoBehaviour
 {
+    public enum DojoMode
+    {
+        Remove, // 追放
+        Enhance // 鍛錬
+    }
+
     [Header("UI参照")]
     public Transform cardListArea;
     public TextMeshProUGUI titleText;
     public TextMeshProUGUI statusText;
     public TextMeshProUGUI deckCountText;
     public Button backButton;
+
+    [Header("モード切替")]
+    public Button removeModeButton;
+    public Button enhanceModeButton;
+    public TextMeshProUGUI removeModeText; // ボタン内のテキスト参照があれば色変え等できるが今回は簡易実装
+    public TextMeshProUGUI enhanceModeText;
 
     [Header("確認ダイアログ")]
     public GameObject confirmPanel;
@@ -28,26 +40,55 @@ public class DeckEditUI : MonoBehaviour
 
     private List<GameObject> cardUIs = new List<GameObject>();
     private KanjiCardData selectedCard;
-    private bool hasRemovedCard = false;
+    private bool hasActioned = false; // 1回行動したら終了
+    private DojoMode currentMode = DojoMode.Remove;
+    private int enhanceCost = 15;
 
     private void Start()
     {
         if (backButton != null) backButton.onClick.AddListener(OnBackClicked);
-        if (confirmYesButton != null) confirmYesButton.onClick.AddListener(OnConfirmRemove);
-        if (confirmNoButton != null) confirmNoButton.onClick.AddListener(OnCancelRemove);
+        if (confirmYesButton != null) confirmYesButton.onClick.AddListener(OnConfirmAction);
+        if (confirmNoButton != null) confirmNoButton.onClick.AddListener(OnCancelAction);
+
+        if (removeModeButton != null) removeModeButton.onClick.AddListener(() => SetMode(DojoMode.Remove));
+        if (enhanceModeButton != null) enhanceModeButton.onClick.AddListener(() => SetMode(DojoMode.Enhance));
     }
 
     private void OnEnable()
     {
-        hasRemovedCard = false;
+        hasActioned = false;
         selectedCard = null;
         if (confirmPanel != null) confirmPanel.SetActive(false);
 
-        // 精神統一演出
-        if (statusText != null)
-            statusText.text = "── 精神統一 ──\n心を静め、山札を見極めよ…";
+        // デフォルトは追放モード
+        SetMode(DojoMode.Remove);
+    }
 
+    public void SetMode(DojoMode mode)
+    {
+        currentMode = mode;
         RefreshCardList();
+        UpdateStatusText();
+        UpdateButtonState();
+    }
+
+    private void UpdateButtonState()
+    {
+        if (removeModeButton != null) removeModeButton.interactable = (currentMode != DojoMode.Remove);
+        if (enhanceModeButton != null) enhanceModeButton.interactable = (currentMode != DojoMode.Enhance);
+    }
+
+    private void UpdateStatusText()
+    {
+        if (hasActioned) return;
+
+        if (statusText != null)
+        {
+            if (currentMode == DojoMode.Remove)
+                statusText.text = "── 精神統一 ──\n心を静め、不要な知識を捨てるのです…";
+            else
+                statusText.text = $"── 鍛錬 ──\n{enhanceCost}Gを支払い、漢字の力を高めます…";
+        }
     }
 
     /// <summary>
@@ -115,7 +156,7 @@ public class DeckEditUI : MonoBehaviour
         var kanjiGo = new GameObject("Kanji");
         kanjiGo.transform.SetParent(go.transform, false);
         var kanjiText = kanjiGo.AddComponent<TextMeshProUGUI>();
-        kanjiText.text = data.kanji;
+        kanjiText.text = data.DisplayName; // 強化済みなら＋などがつく
         kanjiText.fontSize = 38;
         kanjiText.alignment = TextAlignmentOptions.Center;
         kanjiText.color = Color.white;
@@ -147,7 +188,14 @@ public class DeckEditUI : MonoBehaviour
         var descGo = new GameObject("Desc");
         descGo.transform.SetParent(go.transform, false);
         var descText = descGo.AddComponent<TextMeshProUGUI>();
-        descText.text = data.description;
+        // 強化値を表示に反映
+        string desc = data.description;
+        if (data.IsEnhanced)
+        {
+            desc += "\n<color=#FFFF00>(強化済)</color>";
+        }
+        descText.text = desc;
+        
         descText.fontSize = 9;
         descText.alignment = TextAlignmentOptions.Center;
         descText.color = new Color(0.6f, 0.6f, 0.6f);
@@ -163,8 +211,8 @@ public class DeckEditUI : MonoBehaviour
         KanjiCardData capturedData = data;
         button.onClick.AddListener(() => OnCardClicked(capturedData));
 
-        // 追放済みならクリック不可
-        if (hasRemovedCard)
+        // 行動済みならクリック不可
+        if (hasActioned)
         {
             button.interactable = false;
         }
@@ -177,7 +225,7 @@ public class DeckEditUI : MonoBehaviour
     /// </summary>
     private void OnCardClicked(KanjiCardData card)
     {
-        if (hasRemovedCard) return;
+        if (hasActioned) return;
 
         selectedCard = card;
 
@@ -185,23 +233,45 @@ public class DeckEditUI : MonoBehaviour
         {
             confirmPanel.SetActive(true);
         }
+
         if (confirmText != null)
         {
-            confirmText.text = $"『{card.kanji}』({card.cardName})\nを山札から追放しますか？\n\n{card.description}";
+            if (currentMode == DojoMode.Remove)
+            {
+                confirmText.text = $"『{card.kanji}』を山札から追放しますか？\n(二度と戻りません)";
+            }
+            else
+            {
+                // 鍛錬
+                var gm = GameManager.Instance;
+                int gold = gm != null ? gm.playerGold : 0;
+                if (gold < enhanceCost)
+                {
+                    confirmText.text = $"ゴールドが足りません！\n(必要: {enhanceCost}G)";
+                    // YESボタン無効化などの処理が必要だが、今回はメッセージのみでYESを押させない実装にするか、
+                    // あるいはYESボタンを押した先でチェックするか。
+                    // ここではYESボタンを押せるが、押したときにゴールドチェックする形にする。
+                }
+                else
+                {
+                    confirmText.text = $"『{card.kanji}』を鍛錬しますか？\n攻撃・防御の威力+2\n(費用: {enhanceCost}G)";
+                }
+            }
         }
     }
 
     /// <summary>
-    /// 追放を確定
+    /// アクション確定
     /// </summary>
-    private void OnConfirmRemove()
+    private void OnConfirmAction()
     {
         if (selectedCard == null) return;
-
         var gm = GameManager.Instance;
-        if (gm != null)
+        if (gm == null) return;
+
+        if (currentMode == DojoMode.Remove)
         {
-            // 全リストから削除
+            // 追放処理
             if (!gm.deck.Remove(selectedCard))
             {
                 if (!gm.hand.Remove(selectedCard))
@@ -209,22 +279,48 @@ public class DeckEditUI : MonoBehaviour
                     gm.discardPile.Remove(selectedCard);
                 }
             }
-
             Debug.Log($"[DeckEditUI] 『{selectedCard.kanji}』を追放！");
-
             if (statusText != null)
-                statusText.text = $"── 座禅 ──\n『{selectedCard.kanji}』を山札から追放した…\n心が軽くなった。";
+                statusText.text = $"── 座禅 ──\n『{selectedCard.kanji}』を追放した…\n心が軽くなった。";
+            
+            hasActioned = true;
+        }
+        else
+        {
+            // 鍛錬処理
+            if (gm.playerGold < enhanceCost)
+            {
+                // ゴールド不足
+                if (confirmText != null) confirmText.text = "ゴールドが足りません！";
+                // Actionedにはしない
+                return; 
+            }
+
+            // カード強化
+            // ScriptableObjectは参照渡しなので直接書き換えると、同じSOを使っている全てのインスタンスが変わってしまうし、
+            // ゲーム終了後も値が残ってしまう(Editor上)。
+            // 本来はインスタンス化すべきだが、簡易実装として「強化値を増やす」
+            // プレイ中の書き換えはビルド後リセットされるがEditorでは残るため注意が必要。
+            // 今回は要件通り「modifier」を書き換える。
+            
+            gm.playerGold -= enhanceCost;
+            selectedCard.attackModifier += 2;
+            selectedCard.defenseModifier += 2;
+
+            Debug.Log($"[DeckEditUI] 『{selectedCard.kanji}』を鍛錬！ Modifiers += 2");
+            if (statusText != null)
+                statusText.text = $"── お見事 ──\n『{selectedCard.kanji}』の切れ味が増した！";
+            
+            hasActioned = true;
         }
 
-        hasRemovedCard = true;
         selectedCard = null;
-
         if (confirmPanel != null) confirmPanel.SetActive(false);
 
         RefreshCardList();
     }
 
-    private void OnCancelRemove()
+    private void OnCancelAction()
     {
         selectedCard = null;
         if (confirmPanel != null) confirmPanel.SetActive(false);
@@ -247,6 +343,7 @@ public class DeckEditUI : MonoBehaviour
             case CardEffectType.Heal: return new Color(0.25f, 0.8f, 0.35f, 0.9f);
             case CardEffectType.Buff: return new Color(0.85f, 0.7f, 0.2f, 0.9f);
             case CardEffectType.Special: return new Color(0.7f, 0.3f, 0.85f, 0.9f);
+            case CardEffectType.Draw: return new Color(0.2f, 0.6f, 0.8f, 0.9f);
             default: return new Color(0.5f, 0.5f, 0.5f, 0.9f);
         }
     }

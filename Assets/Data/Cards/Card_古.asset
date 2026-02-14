@@ -10,15 +10,15 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2c4689ed0bd226141880b853b4be79da, type: 3}
-  m_Name: "Card_\u529B"
+  m_Name: "Card_\u53E4"
   m_EditorClassIdentifier: Assembly-CSharp::KanjiCardData
-  cardId: 7
-  kanji: "\u529B"
-  cardName: "\u529B"
-  description: "\u529B\u3092\u9AD8\u3081\u3066\u653B\u6483\u529B+2"
+  cardId: 18
+  kanji: "\u53E4"
+  cardName: "\u53E4"
+  description: "\u53E4\u306E\u77E5\u6075\u3067HP4\u56DE\u5FA9"
   cost: 1
-  effectValue: 2
-  effectType: 3
-  isFusionResult: 0
+  effectValue: 4
+  effectType: 2
+  isFusionResult: 1
   attackModifier: 0
   defenseModifier: 0

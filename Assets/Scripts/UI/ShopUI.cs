@@ -230,10 +230,21 @@ public class ShopUI : MonoBehaviour
         if (statusText != null)
             statusText.text = $"『{card.kanji}』を購入！ デッキに追加しました";
 
-        // 購入済みカードを非表示
+        // 購入済み処理：ボタンを無効化しテキストを「売切」に
         if (cardObj != null)
         {
-            cardObj.SetActive(false);
+            var btn = cardObj.GetComponent<Button>(); // Button is on cardObj itself
+            if (btn != null)
+            {
+                btn.interactable = false;
+                // Find the price text specifically
+                var priceTextTransform = cardObj.transform.Find("Price");
+                if (priceTextTransform != null)
+                {
+                    var txt = priceTextTransform.GetComponent<TextMeshProUGUI>();
+                    if (txt != null) txt.text = "売切";
+                }
+            }
         }
 
         UpdateGoldDisplay();

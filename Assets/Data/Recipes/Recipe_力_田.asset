@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 93427485613949d4d8f07a10b994844f, type: 3}
+  m_Name: "Recipe_\u529B_\u7530"
+  m_EditorClassIdentifier: Assembly-CSharp::KanjiFusionRecipe
+  material1: {fileID: 11400000, guid: ab82c03332bdf154bb3c3e0a3fc9bbdc, type: 2}
+  material2: {fileID: 11400000, guid: 7e75f510efbc7824e818e20605373aa4, type: 2}
+  result: {fileID: 11400000, guid: 141c0a0c14078e9478c1514a8759a1e8, type: 2}
