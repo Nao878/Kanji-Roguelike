@@ -71,6 +71,12 @@ public class CardController : MonoBehaviour,
 
         // 合成プレビューは非表示
         if (fusionPreviewObj != null) fusionPreviewObj.SetActive(false);
+
+        // 生成時ボヨヨン演出チェック
+        if (VFXManager.Instance != null)
+        {
+            VFXManager.Instance.CheckAndPlaySpawnEffect(this);
+        }
     }
 
     // ============================================
@@ -205,30 +211,48 @@ public class CardController : MonoBehaviour,
 
         if (resultId >= 0)
         {
-            // 合成成功！
+                // 合成成功！
             var resultCard = gm.GetCardById(resultId);
             if (resultCard != null)
             {
-                Debug.Log($"[CardController] 合成成功！ 『{cardData.kanji}』+『{targetCard.cardData.kanji}』=『{resultCard.kanji}』");
+                Debug.Log($"[CardController] 合成開始: 『{cardData.kanji}』+『{targetCard.cardData.kanji}』=『{resultCard.kanji}』");
 
-                // 手札から素材カードを除去
-                gm.hand.Remove(cardData);
-                gm.hand.Remove(targetCard.cardData);
+                if (VFXManager.Instance != null)
+                {
+                    // 操作ブロック
+                    if (canvasGroup != null) canvasGroup.blocksRaycasts = false;
+                    if (targetCard.canvasGroup != null) targetCard.canvasGroup.blocksRaycasts = false;
 
-                // 結果カードを手札に追加
-                gm.hand.Add(resultCard);
+                    // 次のカードの出現演出を予約
+                    VFXManager.Instance.RegisterSpawnEffect(resultCard);
 
-                // 合成エフェクト（パーティクル）
-                SpawnFusionEffect(targetCard.transform.position);
+                    // 合体演出再生
+                    VFXManager.Instance.PlayFusionSequence(this, targetCard, () =>
+                    {
+                        // データ更新
+                        gm.hand.Remove(cardData);
+                        gm.hand.Remove(targetCard.cardData);
+                        gm.hand.Add(resultCard);
 
-                // 対象カードのオブジェクトを削除
-                Destroy(targetCard.gameObject);
+                        // 古いオブジェクト削除
+                        Destroy(targetCard.gameObject);
+                        Destroy(gameObject);
 
-                // 自分を削除
-                Destroy(gameObject);
+                        // UI更新（ここで新カードが生成され、Setupが呼ばれるはず）
+                        onHandChanged?.Invoke();
+                    });
+                }
+                else
+                {
+                    // Fallback (VFXManagerなし)
+                    gm.hand.Remove(cardData);
+                    gm.hand.Remove(targetCard.cardData);
+                    gm.hand.Add(resultCard);
+                    Destroy(targetCard.gameObject);
+                    Destroy(gameObject);
+                    onHandChanged?.Invoke();
+                }
 
-                // UIを更新
-                onHandChanged?.Invoke();
                 return true;
             }
         }
@@ -239,46 +263,7 @@ public class CardController : MonoBehaviour,
         return false;
     }
 
-    /// <summary>
-    /// 合成エフェクトを生成
-    /// </summary>
-    private void SpawnFusionEffect(Vector3 position)
-    {
-        // パーティクルシステムを生成
-        var effectGo = new GameObject("FusionEffect");
-        effectGo.transform.position = position;
 
-        var ps = effectGo.AddComponent<ParticleSystem>();
-        var main = ps.main;
-        main.duration = 0.8f;
-        main.startLifetime = 0.6f;
-        main.startSpeed = 3f;
-        main.startSize = 8f;
-        main.startColor = new Color(1f, 0.85f, 0.2f, 1f);
-        main.maxParticles = 30;
-        main.loop = false;
-        main.playOnAwake = true;
-
-        var emission = ps.emission;
-        emission.rateOverTime = 0;
-        emission.SetBursts(new ParticleSystem.Burst[] { new ParticleSystem.Burst(0f, 20) });
-
-        var shape = ps.shape;
-        shape.shapeType = ParticleSystemShapeType.Circle;
-        shape.radius = 0.5f;
-
-        var sizeOverLifetime = ps.sizeOverLifetime;
-        sizeOverLifetime.enabled = true;
-        sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1f, 0f);
-
-        // レンダラー設定
-        var renderer = ps.GetComponent<ParticleSystemRenderer>();
-        renderer.renderMode = ParticleSystemRenderMode.Billboard;
-        renderer.material = new Material(Shader.Find("Particles/Standard Unlit"));
-
-        // 自動削除
-        Destroy(effectGo, 2f);
-    }
 
     /// <summary>
     /// 元の手札位置に戻す

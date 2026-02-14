@@ -117,6 +117,11 @@ public class BattleManager : MonoBehaviour
                 enemyCurrentHP = Mathf.Max(0, enemyCurrentHP - attackValue);
                 AddBattleLog($"『{card.DisplayName}』で{attackValue}ダメージ！");
                 Debug.Log($"[BattleManager] 敵に{attackValue}ダメージ 残りHP:{enemyCurrentHP}");
+
+                if (battleUI != null && battleUI.enemyKanjiText != null && VFXManager.Instance != null)
+                {
+                    VFXManager.Instance.PlayDamageEffect(battleUI.enemyKanjiText.gameObject, attackValue);
+                }
                 break;
 
             case CardEffectType.Defense:
@@ -143,6 +148,11 @@ public class BattleManager : MonoBehaviour
                 int healAmount = Mathf.CeilToInt(spAtkVal * 0.6f);
                 gm.playerHP = Mathf.Min(gm.playerMaxHP, gm.playerHP + healAmount);
                 AddBattleLog($"『{card.DisplayName}』で{spAtkVal}ダメージ＋{healAmount}回復！");
+
+                if (battleUI != null && battleUI.enemyKanjiText != null && VFXManager.Instance != null)
+                {
+                    VFXManager.Instance.PlayDamageEffect(battleUI.enemyKanjiText.gameObject, spAtkVal);
+                }
                 break;
 
             case CardEffectType.Draw:
@@ -184,6 +194,13 @@ public class BattleManager : MonoBehaviour
         }
 
         Debug.Log($"[BattleManager] 敵が{damage}ダメージの攻撃");
+
+        if (battleUI != null && VFXManager.Instance != null)
+        {
+            // プレイヤーへのダメージ演出（HPテキストを揺らす）
+            GameObject target = battleUI.playerHPText != null ? battleUI.playerHPText.gameObject : battleUI.gameObject;
+            VFXManager.Instance.PlayDamageEffect(target, damage, true);
+        }
 
         CheckBattleEnd();
 

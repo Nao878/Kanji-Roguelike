@@ -50,6 +50,7 @@ public class ProjectSetupTool : EditorWindow
         var battleManager = CreateBattleManager(enemies);
         var mapManager = CreateMapManager();
         var fusionEngine = CreateFusionEngine(database);
+        var vfxManager = CreateVFXManager();
         var canvas = CreateCanvas();
 
         // UIパネル作成
@@ -80,7 +81,7 @@ public class ProjectSetupTool : EditorWindow
     // ====================================
     private static void CleanupExistingObjects()
     {
-        string[] objectNames = { "GameManager", "BattleManager", "MapManager", "FusionEngine", "MainCanvas", "EventSystem" };
+        string[] objectNames = { "GameManager", "BattleManager", "MapManager", "FusionEngine", "VFXManager", "MainCanvas", "EventSystem" };
         foreach (var name in objectNames)
         {
             var obj = GameObject.Find(name);
@@ -379,6 +380,28 @@ public class ProjectSetupTool : EditorWindow
         var fe = go.AddComponent<KanjiFusionEngine>();
         fe.fusionDatabase = database;
         return fe;
+    }
+
+    // ====================================
+    // VFXManager作成
+    // ====================================
+    private static GameObject CreateVFXManager()
+    {
+        var go = new GameObject("VFXManager");
+        var vfx = go.AddComponent<VFXManager>();
+        
+        // フォント参照設定
+        if (appFont != null) vfx.appFont = appFont;
+
+        // AnimationCurve設定 (コードでボヨヨン設定)
+        // 0 -> 1.2 -> 1.0
+        var curve = new AnimationCurve();
+        curve.AddKey(new Keyframe(0f, 0f, 0f, 6f));    // 開始点 (接線傾き急)
+        curve.AddKey(new Keyframe(0.6f, 1.2f, 0f, 0f)); // ピーク
+        curve.AddKey(new Keyframe(1f, 1f, -1f, 0f));    // 終点 (少し戻る)
+        vfx.spawnCurve = curve;
+
+        return go;
     }
 
     // ====================================
