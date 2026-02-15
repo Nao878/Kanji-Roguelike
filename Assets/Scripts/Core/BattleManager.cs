@@ -11,6 +11,7 @@ public class BattleManager : MonoBehaviour
     public EnemyData currentEnemyData;
     public int enemyCurrentHP;
     public bool isPlayerTurn = true;
+    public bool enemyIsStunned = false; // スタンフラグ
     public BattleState battleState = BattleState.Idle;
 
     [Header("UI参照")]
@@ -52,6 +53,7 @@ public class BattleManager : MonoBehaviour
         currentEnemyData = enemy;
         enemyCurrentHP = enemy.maxHP;
         isPlayerTurn = true;
+        enemyIsStunned = false;
         battleState = BattleState.PlayerTurn;
 
         Debug.Log($"[BattleManager] 戦闘開始！ 敵:{enemy.enemyName}（HP:{enemy.maxHP}）");
@@ -160,6 +162,32 @@ public class BattleManager : MonoBehaviour
                 gm.DrawCards(drawCount);
                 AddBattleLog($"『{card.DisplayName}』でカードを{drawCount}枚ドロー！");
                 break;
+
+            case CardEffectType.AttackAll:
+                // 全体攻撃（現状は単体と同じだが、演出や倍率を変える）
+                int allAtkVal = card.effectValue + card.attackModifier + gm.playerAttackBuff;
+                enemyCurrentHP = Mathf.Max(0, enemyCurrentHP - allAtkVal);
+                AddBattleLog($"『{card.DisplayName}』で敵全体に{allAtkVal}ダメージ！");
+                
+                if (battleUI != null && battleUI.enemyKanjiText != null && VFXManager.Instance != null)
+                {
+                    VFXManager.Instance.PlayDamageEffect(battleUI.enemyKanjiText.gameObject, allAtkVal);
+                }
+                break;
+
+            case CardEffectType.Stun:
+                // スタン付与
+                enemyIsStunned = true;
+                AddBattleLog($"『{card.DisplayName}』で敵をスタンさせた！");
+                
+                // ダメージ演出（ダメージ0で揺らすだけ、あるいは専用があれば呼ぶ）
+                if (battleUI != null && battleUI.enemyKanjiText != null && VFXManager.Instance != null)
+                {
+                    // ダメージ0で呼ぶと「0」が出るので、とりあえず揺らすために呼ぶ（0が出るのは許容、または別途修正）
+                    // 今回はダメージも少し与える設定にするか、純粋なスタンならダメージなし
+                    // ユーザー要望の「困」はスタンのみ。
+                }
+                break;
         }
     }
 
@@ -184,6 +212,17 @@ public class BattleManager : MonoBehaviour
     private void ExecuteEnemyTurn()
     {
         if (currentEnemyData == null) return;
+
+        // スタンチェック
+        if (enemyIsStunned)
+        {
+            AddBattleLog($"敵はスタンしていて動けない！");
+            enemyIsStunned = false; // スタン解除
+            
+            // プレイヤーのターンへ戻る
+            Invoke(nameof(ReturnToPlayerTurn), 1.0f);
+            return;
+        }
 
         int damage = currentEnemyData.attackPower;
         AddBattleLog($"敵の攻撃！ {damage}ダメージ！");
@@ -224,6 +263,17 @@ public class BattleManager : MonoBehaviour
             battleUI.UpdateHandUI();
             battleUI.UpdateStatusUI();
         }
+    }
+
+    private void ReturnToPlayerTurn()
+    {
+        battleState = BattleState.PlayerTurn;
+        isPlayerTurn = true;
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.StartPlayerTurn();
+        }
+        UpdateUI();
     }
 
     /// <summary>

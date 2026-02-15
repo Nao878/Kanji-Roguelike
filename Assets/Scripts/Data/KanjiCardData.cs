@@ -78,5 +78,8 @@ public enum CardEffectType
     Heal,     // 回復
     Buff,     // バフ
     Special,  // 特殊
-    Draw      // ドロー
+    Draw,     // ドロー
+    AttackAll, // 全体攻撃
+    Stun,      // スタン
+    Debuff     // デバフ
 }
