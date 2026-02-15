@@ -66,8 +66,8 @@ public class ProjectSetupTool : EditorWindow
         // 初期デッキ設定
         SetupInitialDeck(gameManager, cards);
 
-        // カード・レシピリスト生成
-        GenerateCardDataRecipeList(cards, recipes);
+        // 仕様書生成
+        GameDesignDocGenerator.Generate();
 
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
@@ -1076,43 +1076,5 @@ public class ProjectSetupTool : EditorWindow
         return go;
     }
 
-    // ====================================
-    // 開発用資料生成
-    // ====================================
-    private static void GenerateCardDataRecipeList(Dictionary<string, KanjiCardData> cards, List<KanjiFusionRecipe> recipes)
-    {
-        var sb = new System.Text.StringBuilder();
-        sb.AppendLine("=== 漢字ローグライク カード＆レシピ一覧 ===");
-        sb.AppendLine($"生成日時: {System.DateTime.Now}");
-        sb.AppendLine();
 
-        sb.AppendLine("■ 全カードリスト");
-        sb.AppendLine("ID | 漢字 | コスト | タイプ | 効果値 | 効果");
-        sb.AppendLine("---|---|---|---|---|---");
-        
-        // ID順にソート
-        var sortedCards = new List<KanjiCardData>(cards.Values);
-        sortedCards.Sort((a, b) => a.cardId.CompareTo(b.cardId));
-
-        foreach (var c in sortedCards)
-        {
-            sb.AppendLine($"{c.cardId} | {c.kanji} | {c.cost} | {c.effectType} | {c.effectValue} | {c.description}");
-        }
-
-        sb.AppendLine();
-        sb.AppendLine("■合体レシピ一覧");
-        sb.AppendLine("素材A + 素材B = 結果");
-        sb.AppendLine("---");
-
-        foreach (var r in recipes)
-        {
-            if (r.material1 == null || r.material2 == null || r.result == null) continue;
-            sb.AppendLine($"『{r.material1.kanji}』 + 『{r.material2.kanji}』 = 『{r.result.kanji}』 ({r.result.description})");
-        }
-
-        string path = "Assets/CardData_RecipeList.txt";
-        System.IO.File.WriteAllText(path, sb.ToString());
-        AssetDatabase.ImportAsset(path);
-        Debug.Log($"  開発用資料生成: {path}");
-    }
 }
