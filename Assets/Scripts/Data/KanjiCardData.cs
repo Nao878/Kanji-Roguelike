@@ -30,6 +30,10 @@ public class KanjiCardData : ScriptableObject
     [Tooltip("効果タイプ")]
     public CardEffectType effectType = CardEffectType.Attack;
 
+    [Header("属性")]
+    [Tooltip("カードの属性")]
+    public CardElement element = CardElement.None;
+
     [Header("合成情報")]
     [Tooltip("合成で生まれたカードかどうか")]
     public bool isFusionResult = false;
@@ -82,4 +86,19 @@ public enum CardEffectType
     AttackAll, // 全体攻撃
     Stun,      // スタン
     Debuff     // デバフ
+}
+
+/// <summary>
+/// カード属性
+/// </summary>
+public enum CardElement
+{
+    None,   // 無属性
+    Wood,   // 木
+    Fire,   // 火
+    Earth,  // 土
+    Sun,    // 日
+    Moon,   // 月
+    Water,  // 水
+    Metal   // 金
 }

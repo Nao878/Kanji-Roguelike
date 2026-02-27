@@ -149,64 +149,65 @@ public class ProjectSetupTool : EditorWindow
     {
         var cards = new Dictionary<string, KanjiCardData>();
 
-        // カード定義: (cardId, 漢字, カード名, 説明, コスト, 効果値, タイプ, 合成結果か)
-        var cardDefs = new (int id, string kanji, string name, string desc, int cost, int value, CardEffectType type, bool fusion)[]
+        // カード定義: (cardId, 漢字, カード名, 説明, コスト, 効果値, タイプ, 合成結果か, 属性)
+        var cardDefs = new (int id, string kanji, string name, string desc, int cost, int value, CardEffectType type, bool fusion, CardElement elem)[]
         {
             // --- 既存カード ---
-            (1, "木", "木", "木の力で敵に3ダメージ", 1, 3, CardEffectType.Attack, false),
-            (2, "林", "林", "林の力で敵に7ダメージ", 1, 7, CardEffectType.Attack, true),
-            (3, "森", "森", "森の力で敵に15ダメージ", 2, 15, CardEffectType.Attack, true),
-            (4, "日", "日", "太陽の光でHPを3回復", 1, 3, CardEffectType.Heal, false),
-            (5, "月", "月", "月の守りで防御力+3", 1, 3, CardEffectType.Defense, false),
-            (6, "明", "明", "日月の力で5ダメージ+3回復", 2, 5, CardEffectType.Special, true),
-            (7, "力", "力", "力を高めて攻撃力+2", 1, 2, CardEffectType.Buff, false),
-            (8, "火", "火", "炎の力で敵に4ダメージ", 1, 4, CardEffectType.Attack, false),
+            (1, "木", "木", "木の力で敵に3ダメージ", 1, 3, CardEffectType.Attack, false, CardElement.Wood),
+            (2, "林", "林", "林の力で敵に7ダメージ", 1, 7, CardEffectType.Attack, true, CardElement.Wood),
+            (3, "森", "森", "森の力で敵に15ダメージ", 2, 15, CardEffectType.Attack, true, CardElement.Wood),
+            (4, "日", "日", "太陽の光でHPを3回復", 1, 3, CardEffectType.Heal, false, CardElement.Sun),
+            (5, "月", "月", "月の守りで防御力+3", 1, 3, CardEffectType.Defense, false, CardElement.Moon),
+            (6, "明", "明", "日月の力で5ダメージ+3回復", 2, 5, CardEffectType.Special, true, CardElement.Sun),
+            (7, "力", "力", "力を高めて攻撃力+2", 1, 2, CardEffectType.Buff, false, CardElement.None),
+            (8, "火", "火", "炎の力で敵に4ダメージ", 1, 4, CardEffectType.Attack, false, CardElement.Fire),
 
-            // --- 新規：基礎漢字 ---
-            (9, "田", "田", "田んぼの土で防御+2", 1, 2, CardEffectType.Defense, false),
-            (10, "口", "口", "口を開けてカードを1枚引く", 1, 1, CardEffectType.Draw, false),
-            (11, "十", "十", "十字斬りで敵に2ダメージ", 1, 2, CardEffectType.Attack, false),
-            (12, "大", "大", "大きく構えて敵に5ダメージ", 2, 5, CardEffectType.Attack, false),
-            (13, "土", "土", "土壁を作って防御+3", 1, 3, CardEffectType.Defense, false),
+            // --- 基礎漢字 ---
+            (9, "田", "田", "田んぼの土で防御+2", 1, 2, CardEffectType.Defense, false, CardElement.Earth),
+            (10, "口", "口", "口を開けてカードを1枚引く", 1, 1, CardEffectType.Draw, false, CardElement.None),
+            (11, "十", "十", "十字斬りで敵に2ダメージ", 1, 2, CardEffectType.Attack, false, CardElement.None),
+            (12, "大", "大", "大きく構えて敵に5ダメージ", 2, 5, CardEffectType.Attack, false, CardElement.None),
+            (13, "土", "土", "土壁を作って防御+3", 1, 3, CardEffectType.Defense, false, CardElement.Earth),
             
-            // --- 新規追加（木偏素材） ---
-            (22, "人", "人", "人の手で微弱な3ダメージ", 1, 3, CardEffectType.Attack, false),
-            (23, "目", "目", "目を凝らして2枚ドロー", 1, 2, CardEffectType.Draw, false),
-            (24, "白", "白", "白壁で防御+4", 1, 4, CardEffectType.Defense, false),
-            (25, "公", "公", "公平に4ダメージ", 2, 4, CardEffectType.Attack, false),
-            // (日 はID:4で定義済み)
+            // --- 木偏素材 ---
+            (22, "人", "人", "人の手で微弱な3ダメージ", 1, 3, CardEffectType.Attack, false, CardElement.None),
+            (23, "目", "目", "目を凝らして2枚ドロー", 1, 2, CardEffectType.Draw, false, CardElement.None),
+            (24, "白", "白", "白壁で防御+4", 1, 4, CardEffectType.Defense, false, CardElement.None),
+            (25, "公", "公", "公平に4ダメージ", 2, 4, CardEffectType.Attack, false, CardElement.None),
 
-            // --- 新規：合体漢字 ---
-            (14, "畑", "畑", "火と土の恵みで3ダメージ+3防御", 2, 3, CardEffectType.Special, true),
-            (15, "加", "加", "力を加えて攻撃力+2", 2, 2, CardEffectType.Buff, true),
-            (16, "男", "男", "畑仕事の力で8ダメージ", 2, 8, CardEffectType.Attack, true),
-            (17, "回", "回", "ぐるぐる回して2枚ドロー", 2, 2, CardEffectType.Draw, true),
-            (18, "古", "古", "古の知恵でHP4回復", 1, 4, CardEffectType.Heal, true),
-            (19, "本", "本", "基本に立ち返り攻撃力+3", 2, 3, CardEffectType.Buff, true),
-            (20, "圭", "圭", "土を重ねて防御+6", 2, 6, CardEffectType.Defense, true),
-            (21, "早", "早", "早業で1ドロー", 2, 1, CardEffectType.Draw, true), // Drawに変更
+            // --- 新規基礎 ---
+            (26, "民", "民", "民の結束で防御+3", 1, 3, CardEffectType.Defense, false, CardElement.None),
 
-            // --- 新規追加（木偏合体） ---
-            (27, "休", "休", "木陰で休んでHP8回復", 2, 8, CardEffectType.Heal, true),
-            (28, "相", "相", "相手を見て3枚ドロー", 2, 3, CardEffectType.Draw, true),
-            (29, "柏", "柏", "柏の盾で防御+12", 2, 12, CardEffectType.Defense, true),
-            (30, "松", "松", "松の棘で敵全体に10ダメージ", 3, 10, CardEffectType.AttackAll, true),
-            (31, "果", "果", "果実を食べてHP6回復", 2, 6, CardEffectType.Heal, true),
-            (32, "東", "東", "日が昇り攻撃力+3", 2, 3, CardEffectType.Buff, true),
-            (33, "困", "困", "囲んで敵を1ターンスタン", 2, 1, CardEffectType.Stun, true),
+            // --- 合体漢字 ---
+            (14, "畑", "畑", "火と土の恵みで3ダメージ+3防御", 2, 3, CardEffectType.Special, true, CardElement.Fire),
+            (15, "加", "加", "力を加えて攻撃力+2", 2, 2, CardEffectType.Buff, true, CardElement.None),
+            (16, "男", "男", "畑仕事の力で8ダメージ", 2, 8, CardEffectType.Attack, true, CardElement.None),
+            (17, "回", "回", "ぐるぐる回して2枚ドロー", 2, 2, CardEffectType.Draw, true, CardElement.None),
+            (18, "古", "古", "古の知恵でHP4回復", 1, 4, CardEffectType.Heal, true, CardElement.None),
+            (19, "本", "本", "基本に立ち返り攻撃力+3", 2, 3, CardEffectType.Buff, true, CardElement.Wood),
+            (20, "圭", "圭", "土を重ねて防御+6", 2, 6, CardEffectType.Defense, true, CardElement.Earth),
+            (21, "早", "早", "早業で1ドロー", 2, 1, CardEffectType.Draw, true, CardElement.Sun),
+
+            // --- 木偏合体 ---
+            (27, "休", "休", "木陰で休んでHP8回復", 2, 8, CardEffectType.Heal, true, CardElement.Wood),
+            (28, "相", "相", "相手を見て3枚ドロー", 2, 3, CardEffectType.Draw, true, CardElement.Wood),
+            (29, "柏", "柏", "柏の盾で防御+12", 2, 12, CardEffectType.Defense, true, CardElement.Wood),
+            (30, "松", "松", "松の棘で敵全体に10ダメージ", 3, 10, CardEffectType.AttackAll, true, CardElement.Wood),
+            (31, "果", "果", "果実を食べてHP6回復", 2, 6, CardEffectType.Heal, true, CardElement.Wood),
+            (32, "東", "東", "日が昇り攻撃力+3", 2, 3, CardEffectType.Buff, true, CardElement.Sun),
+            (33, "困", "困", "囲んで敵を1ターンスタン", 2, 1, CardEffectType.Stun, true, CardElement.None),
+
+            // --- 新規合体 ---
+            (34, "炎", "炎", "二つの炎で敵に12ダメージ", 2, 12, CardEffectType.Attack, true, CardElement.Fire),
+            (35, "眠", "眠", "催眠で敵を1ターンスタン", 2, 1, CardEffectType.Stun, true, CardElement.None),
+            (36, "品", "品", "三つの口で3枚ドロー", 2, 3, CardEffectType.Draw, true, CardElement.None),
+            (37, "晶", "晶", "三つの太陽でHP15回復", 3, 15, CardEffectType.Heal, true, CardElement.Sun),
         };
-
-        // 早の定義を微調整
-        // CardEffectType.Draw, value=2 (早＝早いので2枚引く、などにしておくのがゲーム的に無難)
-        // または指示通り「ターン開始時ドロー+1」を目指すならパッシブ用のフラグが必要だが…。
-        // ここでは「早」= Draw 2 に設定してゲームバランスを取る。
-        // ※表では「1ドロー+1バフ」としたが、実装の手間を考慮し Draw 2 に変更。
 
         foreach (var def in cardDefs)
         {
             string path = $"Assets/Data/Cards/Card_{def.kanji}.asset";
 
-            // 既存アセットがあれば削除
             var existing = AssetDatabase.LoadAssetAtPath<KanjiCardData>(path);
             if (existing != null) AssetDatabase.DeleteAsset(path);
 
@@ -219,13 +220,13 @@ public class ProjectSetupTool : EditorWindow
             card.effectValue = def.value;
             card.effectType = def.type;
             card.isFusionResult = def.fusion;
-            // modifiersは0で初期化
+            card.element = def.elem;
             card.attackModifier = 0;
             card.defenseModifier = 0;
 
             AssetDatabase.CreateAsset(card, path);
             cards[def.kanji] = card;
-            Debug.Log($"  カード作成: 『{def.kanji}』 {def.desc}");
+            Debug.Log($"  カード作成: 『{def.kanji}』 [{def.elem}] {def.desc}");
         }
 
         return cards;
@@ -238,19 +239,20 @@ public class ProjectSetupTool : EditorWindow
     {
         var recipes = new List<KanjiFusionRecipe>();
 
-        var recipeDefs = new (string mat1, string mat2, string result)[]
+        // 2枚合体レシピ: (素材1, 素材2, 結果)
+        var recipeDefs2 = new (string mat1, string mat2, string result)[]
         {
             // --- 既存レシピ ---
             ("木", "木", "林"),
             ("林", "木", "森"),
             ("日", "月", "明"),
 
-            // --- 新規レシピ ---
+            // --- 基本レシピ ---
             ("火", "田", "畑"),
             ("力", "口", "加"),
             ("力", "田", "男"),
             ("口", "口", "回"),
-            ("十", "口", "古"), // パターンA
+            ("十", "口", "古"),
             ("大", "木", "本"),
             ("土", "土", "圭"),
             ("日", "十", "早"),
@@ -263,14 +265,24 @@ public class ProjectSetupTool : EditorWindow
             ("田", "木", "果"),
             ("日", "木", "東"),
             ("口", "木", "困"),
-        };
-        // 補足：十+口=田 のパターンもあるが、古を優先。
 
-        foreach (var def in recipeDefs)
+            // --- 新規レシピ ---
+            ("火", "火", "炎"),
+            ("目", "民", "眠"),
+        };
+
+        // 3枚合体レシピ: (素材1, 素材2, 素材3, 結果)
+        var recipeDefs3 = new (string mat1, string mat2, string mat3, string result)[]
+        {
+            ("口", "口", "口", "品"),
+            ("日", "日", "日", "晶"),
+        };
+
+        // 2枚レシピ生成
+        foreach (var def in recipeDefs2)
         {
             if (!cards.ContainsKey(def.mat1) || !cards.ContainsKey(def.mat2) || !cards.ContainsKey(def.result))
             {
-                // 肋などはここでスキップされる
                 Debug.LogWarning($"  レシピスキップ: {def.mat1}+{def.mat2}={def.result}（カード未定義）");
                 continue;
             }
@@ -282,11 +294,37 @@ public class ProjectSetupTool : EditorWindow
             var recipe = ScriptableObject.CreateInstance<KanjiFusionRecipe>();
             recipe.material1 = cards[def.mat1];
             recipe.material2 = cards[def.mat2];
+            recipe.material3 = null; // 2枚合体
             recipe.result = cards[def.result];
 
             AssetDatabase.CreateAsset(recipe, path);
             recipes.Add(recipe);
             Debug.Log($"  レシピ作成: 『{def.mat1}』+『{def.mat2}』=『{def.result}』");
+        }
+
+        // 3枚レシピ生成
+        foreach (var def in recipeDefs3)
+        {
+            if (!cards.ContainsKey(def.mat1) || !cards.ContainsKey(def.mat2) ||
+                !cards.ContainsKey(def.mat3) || !cards.ContainsKey(def.result))
+            {
+                Debug.LogWarning($"  レシピスキップ: {def.mat1}+{def.mat2}+{def.mat3}={def.result}（カード未定義）");
+                continue;
+            }
+
+            string path = $"Assets/Data/Recipes/Recipe_{def.mat1}_{def.mat2}_{def.mat3}.asset";
+            var existing = AssetDatabase.LoadAssetAtPath<KanjiFusionRecipe>(path);
+            if (existing != null) AssetDatabase.DeleteAsset(path);
+
+            var recipe = ScriptableObject.CreateInstance<KanjiFusionRecipe>();
+            recipe.material1 = cards[def.mat1];
+            recipe.material2 = cards[def.mat2];
+            recipe.material3 = cards[def.mat3];
+            recipe.result = cards[def.result];
+
+            AssetDatabase.CreateAsset(recipe, path);
+            recipes.Add(recipe);
+            Debug.Log($"  レシピ作成: 『{def.mat1}』+『{def.mat2}』+『{def.mat3}』=『{def.result}』");
         }
 
         return recipes;

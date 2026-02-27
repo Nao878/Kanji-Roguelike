@@ -14,4 +14,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::KanjiFusionRecipe
   material1: {fileID: 11400000, guid: 7e75f510efbc7824e818e20605373aa4, type: 2}
   material2: {fileID: 11400000, guid: 190e77b37ee110e42aabf2ad3d90853a, type: 2}
+  material3: {fileID: 0}
   result: {fileID: 11400000, guid: ed08359eb8212d24f995be8b749d29e1, type: 2}

@@ -27,48 +27,31 @@ public class GameDesignDocGenerator : EditorWindow
         AppendFusionRecipes(sb);
 
         // 3. 初期デッキとショップ
-        AppendDeckAndShopLimit(sb);
+        AppendDeckAndShopInfo(sb);
 
         // ファイル書き込み
-        string fullPath = Path.Combine(Application.dataPath, "GameDesignDoc.md");
-        // Application.dataPath は Assetsフォルダを指す
-        // OUTPUT_PATHはAssets/GameDesignDoc.md なので、Application.dataPathの親から考えるか、
-        // 単にFile.WriteAllText("Assets/GameDesignDoc.md", ...) でUnityプロジェクトルートからの相対パスでもいけるが、
-        // 確実にするなら絶対パス
-        
-        // エディタ拡張ならプロジェクトルートがカレントディレクトリになることが多いが、念のため
         File.WriteAllText(OUTPUT_PATH, sb.ToString());
-        
         AssetDatabase.ImportAsset(OUTPUT_PATH);
+        
         var asset = AssetDatabase.LoadAssetAtPath<Object>(OUTPUT_PATH);
-        EditorGUIUtility.PingObject(asset);
+        if (asset != null) EditorGUIUtility.PingObject(asset);
 
-        Debug.Log($"ゲーム仕様書を更新しました: {OUTPUT_PATH}");
+        Debug.Log($"[GameDesignDoc] 仕様書を更新しました: {OUTPUT_PATH}");
     }
 
     private static void AppendCardList(StringBuilder sb)
     {
         sb.AppendLine("## 1. Card List (全カード一覧)");
-        sb.AppendLine("| ID | Kanji | Cost | Type | Value | Effect |");
-        sb.AppendLine("|---|---|---|---|---|---|");
+        sb.AppendLine("| ID | Kanji | Element | Cost | Type | Value | Effect |");
+        sb.AppendLine("|---|---|---|---|---|---|---|");
 
-        string[] guids = AssetDatabase.FindAssets("t:KanjiCardData");
-        List<KanjiCardData> cards = new List<KanjiCardData>();
-
-        foreach (string guid in guids)
-        {
-            string path = AssetDatabase.GUIDToAssetPath(guid);
-            KanjiCardData card = AssetDatabase.LoadAssetAtPath<KanjiCardData>(path);
-            if (card != null) cards.Add(card);
-        }
-
-        // ID順にソート
-        cards.Sort((a, b) => a.cardId.CompareTo(b.cardId));
+        var cards = LoadAllCards();
 
         foreach (KanjiCardData c in cards)
         {
-            string effectText = c.description.Replace("\n", "<br>");
-            sb.AppendLine($"| {c.cardId} | **{c.kanji}** | {c.cost} | {c.effectType} | {c.effectValue} | {effectText} |");
+            string effectText = c.description != null ? c.description.Replace("\n", " ") : "";
+            string elemStr = c.element != CardElement.None ? c.element.ToString() : "-";
+            sb.AppendLine($"| {c.cardId} | **{c.kanji}** | {elemStr} | {c.cost} | {c.effectType} | {c.effectValue} | {effectText} |");
         }
         sb.AppendLine();
     }
@@ -76,8 +59,8 @@ public class GameDesignDocGenerator : EditorWindow
     private static void AppendFusionRecipes(StringBuilder sb)
     {
         sb.AppendLine("## 2. Fusion Recipes (合体レシピ)");
-        sb.AppendLine("| Material A | Material B | Result | Description |");
-        sb.AppendLine("|---|---|---|---|");
+        sb.AppendLine("| Materials | Result | Description |");
+        sb.AppendLine("|---|---|---|");
 
         string[] guids = AssetDatabase.FindAssets("t:KanjiFusionRecipe");
         List<KanjiFusionRecipe> recipes = new List<KanjiFusionRecipe>();
@@ -89,8 +72,7 @@ public class GameDesignDocGenerator : EditorWindow
             if (recipe != null) recipes.Add(recipe);
         }
 
-        // 素材Aの漢字順などでソート
-        recipes.Sort((a, b) => 
+        recipes.Sort((a, b) =>
         {
             if (a.material1 == null) return -1;
             if (b.material1 == null) return 1;
@@ -100,12 +82,16 @@ public class GameDesignDocGenerator : EditorWindow
         foreach (KanjiFusionRecipe r in recipes)
         {
             if (r.material1 == null || r.material2 == null || r.result == null) continue;
-            sb.AppendLine($"| {r.material1.kanji} | {r.material2.kanji} | **{r.result.kanji}** | {r.result.description} |");
+            // 3枚合体対応
+            string materials = $"{r.material1.kanji} + {r.material2.kanji}";
+            if (r.material3 != null) materials += $" + {r.material3.kanji}";
+            string desc = r.result.description != null ? r.result.description : "";
+            sb.AppendLine($"| {materials} | **{r.result.kanji}** | {desc} |");
         }
         sb.AppendLine();
     }
 
-    private static void AppendDeckAndShopLimit(StringBuilder sb)
+    private static void AppendDeckAndShopInfo(StringBuilder sb)
     {
         sb.AppendLine("## 3. Game Settings");
 
@@ -125,44 +111,66 @@ public class GameDesignDocGenerator : EditorWindow
                     if (!deckCounts.ContainsKey(card.kanji)) deckCounts[card.kanji] = 0;
                     deckCounts[card.kanji]++;
                 }
-
-                foreach (KeyValuePair<string, int> kvp in deckCounts)
+                foreach (var kvp in deckCounts)
                 {
                     sb.AppendLine($"- **{kvp.Key}** x{kvp.Value}");
                 }
             }
             else
             {
-                sb.AppendLine("- (Scene上のGameManagerからデッキ情報を取得できませんでした)");
+                sb.AppendLine("- (デッキ情報を取得できませんでした)");
             }
         }
         else
         {
-            sb.AppendLine("- (GameManagerオブジェクトが見つかりません - PlayモードまたはSetup直後に実行してください)");
+            sb.AppendLine("- (Setup直後に実行してください)");
         }
         sb.AppendLine();
 
-        // ショップリスト
+        // ショップリスト（AssetDatabase経由で全カードを取得）
         sb.AppendLine("### Shop Lineup (商店ラインナップ)");
-        sb.AppendLine("> `Resources`フォルダに含まれる全てのカードが出現対象です。");
+        sb.AppendLine("> 全カードから基礎カード（非合体結果）が出現対象です。");
         
-        KanjiCardData[] shopCards = Resources.LoadAll<KanjiCardData>("");
-        if (shopCards != null && shopCards.Length > 0)
+        var allCards = LoadAllCards();
+        var shopCards = new List<KanjiCardData>();
+        foreach (var c in allCards)
         {
-            System.Array.Sort(shopCards, (a, b) => string.Compare(a.kanji, b.kanji));
+            if (!c.isFusionResult) shopCards.Add(c);
+        }
 
-            sb.Append("List: ");
-            for (int i = 0; i < shopCards.Length; i++)
+        if (shopCards.Count > 0)
+        {
+            sb.Append("基礎カード: ");
+            for (int i = 0; i < shopCards.Count; i++)
             {
                 sb.Append(shopCards[i].kanji);
-                if (i < shopCards.Length - 1) sb.Append(", ");
+                if (i < shopCards.Count - 1) sb.Append(", ");
             }
             sb.AppendLine();
         }
         else
         {
-            sb.AppendLine("- (ResourcesフォルダにKanjiCardDataが見つかりません)");
+            sb.AppendLine("- (カードが見つかりません)");
         }
         sb.AppendLine();
+    }
+
+    /// <summary>
+    /// AssetDatabase経由でプロジェクト全体のKanjiCardDataを取得しID順でソート
+    /// </summary>
+    private static List<KanjiCardData> LoadAllCards()
+    {
+        string[] guids = AssetDatabase.FindAssets("t:KanjiCardData");
+        List<KanjiCardData> cards = new List<KanjiCardData>();
+
+        foreach (string guid in guids)
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            KanjiCardData card = AssetDatabase.LoadAssetAtPath<KanjiCardData>(path);
+            if (card != null) cards.Add(card);
+        }
+
+        cards.Sort((a, b) => a.cardId.CompareTo(b.cardId));
+        return cards;
     }
 }

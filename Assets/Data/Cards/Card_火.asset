@@ -19,6 +19,7 @@ MonoBehaviour:
   cost: 1
   effectValue: 4
   effectType: 0
+  element: 2
   isFusionResult: 0
   attackModifier: 0
   defenseModifier: 0
