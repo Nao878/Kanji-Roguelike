@@ -298,7 +298,6 @@ public class VFXManager : MonoBehaviour
         tmp.fontSize = isPlayer ? 40 : 50;
         tmp.color = isPlayer ? new Color(1f, 0.2f, 0.2f) : new Color(1f, 0.8f, 0.2f); // プレイヤー被弾赤、敵被弾黄色
         tmp.alignment = TextAlignmentOptions.Center;
-        tmp.enableWordWrapping = false;
         if (appFont != null) tmp.font = appFont;
         
         // アウトライン
@@ -330,6 +329,80 @@ public class VFXManager : MonoBehaviour
             if (elapsed > duration * 0.6f)
             {
                 float alpha = 1f - (elapsed - duration * 0.6f) / (duration * 0.4f);
+                tmp.alpha = alpha;
+            }
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        Destroy(obj);
+    }
+
+    // ===========================================
+    // コンボ演出 (Combo Feedback)
+    // ===========================================
+
+    public void PlayComboEffect(GameObject target, string text, Color color)
+    {
+        if (target == null) return;
+        
+        GameObject textObj = new GameObject($"ComboText");
+        textObj.transform.SetParent(transform.parent); // Canvas直下
+        // ターゲットより少し上に配置
+        textObj.transform.position = target.transform.position + Vector3.up * 80f;
+        textObj.transform.SetAsLastSibling();
+
+        var tmp = textObj.AddComponent<TextMeshProUGUI>();
+        tmp.text = text;
+        tmp.fontSize = 60;
+        tmp.color = color;
+        tmp.alignment = TextAlignmentOptions.Center;
+        if (appFont != null) tmp.font = appFont;
+        
+        // アウトライン
+        tmp.outlineWidth = 0.3f;
+        tmp.outlineColor = Color.black;
+
+        StartCoroutine(CoComboText(textObj));
+    }
+
+    private IEnumerator CoComboText(GameObject obj)
+    {
+        float duration = 1.2f;
+        float elapsed = 0f;
+        
+        Vector3 velocity = new Vector3(0f, 100f, 0f); // 真上にゆっくり
+        var tmp = obj.GetComponent<TextMeshProUGUI>();
+
+        // スケールアニメーション
+        obj.transform.localScale = Vector3.one * 0.1f;
+
+        while (elapsed < duration)
+        {
+            if (obj == null) yield break;
+
+            float t = elapsed / duration;
+
+            // スケール：ボヨヨン
+            if (t < 0.2f)
+            {
+                float scale = Mathf.Lerp(0.1f, 1.5f, t / 0.2f);
+                obj.transform.localScale = Vector3.one * scale;
+            }
+            else if (t < 0.3f)
+            {
+                float scale = Mathf.Lerp(1.5f, 1.0f, (t - 0.2f) / 0.1f);
+                obj.transform.localScale = Vector3.one * scale;
+            }
+
+            // 移動
+            obj.transform.localPosition += velocity * Time.deltaTime;
+
+            // フェードアウト
+            if (t > 0.7f)
+            {
+                float alpha = 1f - (t - 0.7f) / 0.3f;
                 tmp.alpha = alpha;
             }
 

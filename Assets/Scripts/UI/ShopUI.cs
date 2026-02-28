@@ -88,7 +88,10 @@ public class ShopUI : MonoBehaviour
         var loaded = Resources.LoadAll<KanjiCardData>("");
         foreach (var card in loaded)
         {
-            result.Add(card);
+            if (!card.isFusionResult)
+            {
+                result.Add(card);
+            }
         }
         return result;
     }
@@ -224,6 +227,11 @@ public class ShopUI : MonoBehaviour
 
         gm.playerGold -= price;
         gm.deck.Add(card);
+
+        if (EncyclopediaManager.Instance != null)
+        {
+            EncyclopediaManager.Instance.UnlockCard(card.cardId);
+        }
 
         Debug.Log($"[ShopUI] 『{card.kanji}』を{price}Gで購入！");
 

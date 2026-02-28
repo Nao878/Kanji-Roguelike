@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2c4689ed0bd226141880b853b4be79da, type: 3}
+  m_Name: "Card_\u52A0"
+  m_EditorClassIdentifier: Assembly-CSharp::KanjiCardData
+  cardId: 15
+  kanji: "\u52A0"
+  cardName: "\u52A0"
+  description: "\u529B\u3092\u52A0\u3048\u3066\u653B\u6483\u529B+2"
+  cost: 2
+  effectValue: 2
+  effectType: 3
+  element: 0
+  isFusionResult: 1
+  attackModifier: 0
+  defenseModifier: 0

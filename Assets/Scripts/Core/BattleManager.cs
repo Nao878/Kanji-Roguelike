@@ -23,7 +23,24 @@ public class BattleManager : MonoBehaviour
     public Button endTurnButton;
     public Transform handArea;
 
-    [Header("敵データリスト")]
+    // コンボ関連
+    private string lastPlayedKanji = "";
+    private CardElement lastPlayedElement = CardElement.None;
+    private int elementChainCount = 0;
+    
+    // 熟語によるボーナスダメージ等
+    private System.Collections.Generic.Dictionary<string, int> jukugoCombos = new System.Collections.Generic.Dictionary<string, int>()
+    {
+        { "火炎", 15 },
+        { "森林", 15 },
+        { "明暗", 20 },
+        { "白黒", 10 },
+        { "休眠", 10 },
+        { "目口", 5 },
+        { "人民", 5 }
+    };
+    
+    [Header("バトルUI")]
     public EnemyData[] normalEnemies;
     public EnemyData bossEnemy;
 
@@ -37,6 +54,11 @@ public class BattleManager : MonoBehaviour
         EnemyTurn,
         Won,
         Lost
+    }
+
+    void Start()
+    {
+        // 初期状態ではUIを非表示またはリセット
     }
 
     /// <summary>
@@ -54,6 +76,10 @@ public class BattleManager : MonoBehaviour
         enemyCurrentHP = enemy.maxHP;
         isPlayerTurn = true;
         enemyIsStunned = false;
+        
+        lastPlayedKanji = "";
+        lastPlayedElement = CardElement.None;
+        elementChainCount = 0;
         battleState = BattleState.PlayerTurn;
 
         Debug.Log($"[BattleManager] 戦闘開始！ 敵:{enemy.enemyName}（HP:{enemy.maxHP}）");
@@ -113,6 +139,43 @@ public class BattleManager : MonoBehaviour
         int attackValue = card.effectValue + card.attackModifier + (card.effectType == CardEffectType.Attack ? gm.playerAttackBuff : 0);
         int defenseValue = card.effectValue + card.defenseModifier;
 
+        // コンボ判定：熟語
+        string comboStr = lastPlayedKanji + card.kanji;
+        int jukugoBonusDmg = 0;
+        if (jukugoCombos.ContainsKey(comboStr))
+        {
+            jukugoBonusDmg = jukugoCombos[comboStr];
+            attackValue += jukugoBonusDmg;
+            AddBattleLog($"<color=#FFD700>熟語コンボ発動！『{comboStr}』ボーナス+{jukugoBonusDmg}</color>");
+            if (VFXManager.Instance != null && battleUI != null)
+            {
+                VFXManager.Instance.PlayComboEffect(battleUI.gameObject, $"熟語コンボ\n{comboStr}!!", new Color(1f, 0.8f, 0f));
+            }
+        }
+
+        // コンボ判定：属性チェイン
+        bool isElementCombo = false;
+        if (card.element != CardElement.None && card.element == lastPlayedElement)
+        {
+            elementChainCount++;
+            isElementCombo = true;
+            int elementBonus = elementChainCount * 2; // チェイン毎にダメージ+2などのボーナス補正
+            attackValue += elementBonus;
+            AddBattleLog($"<color=#00FFFF>属性チェイン！({card.element}) ボーナス+{elementBonus}</color>");
+            if (VFXManager.Instance != null && battleUI != null)
+            {
+                VFXManager.Instance.PlayComboEffect(battleUI.gameObject, $"{elementChainCount} CHAIN!!\n{card.element}", new Color(0f, 1f, 1f));
+            }
+        }
+        else
+        {
+            elementChainCount = 1;
+        }
+
+        // 次回コンボの布石を記憶
+        lastPlayedKanji = card.kanji;
+        lastPlayedElement = card.element;
+
         switch (card.effectType)
         {
             case CardEffectType.Attack:
@@ -145,7 +208,7 @@ public class BattleManager : MonoBehaviour
 
             case CardEffectType.Special:
                 // 特殊：ダメージ + 回復
-                int spAtkVal = card.effectValue + card.attackModifier;
+                int spAtkVal = card.effectValue + card.attackModifier + jukugoBonusDmg + (isElementCombo ? elementChainCount * 2 : 0);
                 enemyCurrentHP = Mathf.Max(0, enemyCurrentHP - spAtkVal);
                 int healAmount = Mathf.CeilToInt(spAtkVal * 0.6f);
                 gm.playerHP = Mathf.Min(gm.playerMaxHP, gm.playerHP + healAmount);

@@ -508,17 +508,36 @@ public class MapManager : MonoBehaviour
                 break;
 
             case NodeType.Event:
-                Debug.Log("[MapManager] イベント発生！ HPを5回復 & 10G獲得");
-                if (GameManager.Instance != null)
+                int rand = Random.Range(0, 100);
+                if (rand < 10)
                 {
-                    GameManager.Instance.playerHP = Mathf.Min(
-                        GameManager.Instance.playerMaxHP,
-                        GameManager.Instance.playerHP + 5
-                    );
-                    GameManager.Instance.playerGold += 10;
+                    Debug.Log("[MapManager] 大当たり！ HP全回復 & 50G獲得");
+                    if (GameManager.Instance != null)
+                    {
+                        GameManager.Instance.playerHP = GameManager.Instance.playerMaxHP;
+                        GameManager.Instance.playerGold += 50;
+                        UpdateMapUI();
+                        UpdateGoldDisplay();
+                    }
                 }
-                UpdateMapUI();
-                UpdateGoldDisplay();
+                else if (rand < 50)
+                {
+                    Debug.Log("[MapManager] イベントでワープ：戦闘マスへ");
+                    if (GameManager.Instance != null && GameManager.Instance.battleManager != null)
+                        GameManager.Instance.battleManager.StartRandomBattle();
+                }
+                else if (rand < 80)
+                {
+                    Debug.Log("[MapManager] イベントでワープ：商店へ");
+                    if (GameManager.Instance != null)
+                        GameManager.Instance.ChangeState(GameState.Shop);
+                }
+                else
+                {
+                    Debug.Log("[MapManager] イベントでワープ：道場へ");
+                    if (GameManager.Instance != null)
+                        GameManager.Instance.ChangeState(GameState.Dojo);
+                }
                 break;
         }
     }

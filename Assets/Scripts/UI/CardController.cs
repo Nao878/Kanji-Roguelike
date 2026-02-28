@@ -10,7 +10,7 @@ using TMPro;
 /// </summary>
 public class CardController : MonoBehaviour,
     IBeginDragHandler, IDragHandler, IEndDragHandler,
-    IPointerEnterHandler, IPointerExitHandler
+    IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler
 {
     [Header("カードデータ")]
     public KanjiCardData cardData;
@@ -156,6 +156,14 @@ public class CardController : MonoBehaviour,
                     break;
                 }
             }
+
+            // BattleFusionAreaへのドロップ
+            var bfa = result.gameObject.GetComponentInParent<BattleFusionArea>();
+            if (bfa != null)
+            {
+                handled = bfa.ReceiveCard(this);
+                if (handled) break;
+            }
         }
 
         if (!handled)
@@ -207,60 +215,77 @@ public class CardController : MonoBehaviour,
         if (gm == null || cardData == null || targetCard.cardData == null) return false;
 
         // Dictionaryベースの高速レシピ検索
-        int resultId = gm.FindFusionResult(cardData.cardId, targetCard.cardData.cardId);
+        var resultIds = gm.FindFusionResults(cardData.cardId, targetCard.cardData.cardId);
 
-        if (resultId >= 0)
+        if (resultIds.Count > 0)
         {
-                // 合成成功！
-            var resultCard = gm.GetCardById(resultId);
-            if (resultCard != null)
+            if (resultIds.Count == 1)
             {
-                Debug.Log($"[CardController] 合成開始: 『{cardData.kanji}』+『{targetCard.cardData.kanji}』=『{resultCard.kanji}』");
-
-                if (VFXManager.Instance != null)
-                {
-                    // 操作ブロック
-                    if (canvasGroup != null) canvasGroup.blocksRaycasts = false;
-                    if (targetCard.canvasGroup != null) targetCard.canvasGroup.blocksRaycasts = false;
-
-                    // 次のカードの出現演出を予約
-                    VFXManager.Instance.RegisterSpawnEffect(resultCard);
-
-                    // 合体演出再生
-                    VFXManager.Instance.PlayFusionSequence(this, targetCard, () =>
-                    {
-                        // データ更新
-                        gm.hand.Remove(cardData);
-                        gm.hand.Remove(targetCard.cardData);
-                        gm.hand.Add(resultCard);
-
-                        // 古いオブジェクト削除
-                        Destroy(targetCard.gameObject);
-                        Destroy(gameObject);
-
-                        // UI更新（ここで新カードが生成され、Setupが呼ばれるはず）
-                        onHandChanged?.Invoke();
-                    });
-                }
-                else
-                {
-                    // Fallback (VFXManagerなし)
-                    gm.hand.Remove(cardData);
-                    gm.hand.Remove(targetCard.cardData);
-                    gm.hand.Add(resultCard);
-                    Destroy(targetCard.gameObject);
-                    Destroy(gameObject);
-                    onHandChanged?.Invoke();
-                }
-
-                return true;
+                // 1種類のみ
+                ProceedFusion(targetCard, resultIds[0]);
             }
+            else
+            {
+                // 複数種類あり
+                gm.ShowFusionSelectionUI(resultIds, (selectedId) =>
+                {
+                    ProceedFusion(targetCard, selectedId);
+                });
+            }
+            return true;
         }
 
         // 合成不可 → 元に戻す
         Debug.Log($"[CardController] 合成不可: 『{cardData.kanji}』+『{targetCard.cardData.kanji}』");
         ReturnToHand();
         return false;
+    }
+
+    private void ProceedFusion(CardController targetCard, int resultId)
+    {
+        var gm = GameManager.Instance;
+        var resultCard = gm.GetCardById(resultId);
+        if (resultCard == null) return;
+
+        Debug.Log($"[CardController] 合成開始: 『{cardData.kanji}』+『{targetCard.cardData.kanji}』=『{resultCard.kanji}』");
+
+        if (VFXManager.Instance != null)
+        {
+            // 操作ブロック
+            if (canvasGroup != null) canvasGroup.blocksRaycasts = false;
+            if (targetCard.canvasGroup != null) targetCard.canvasGroup.blocksRaycasts = false;
+
+            // 次のカードの出現演出を予約
+            VFXManager.Instance.RegisterSpawnEffect(resultCard);
+
+            // 合体演出再生
+            VFXManager.Instance.PlayFusionSequence(this, targetCard, () =>
+            {
+                // データ更新
+                gm.hand.Remove(cardData);
+                gm.hand.Remove(targetCard.cardData);
+                gm.hand.Add(resultCard);
+                if (EncyclopediaManager.Instance != null) EncyclopediaManager.Instance.UnlockCard(resultCard.cardId);
+
+                // 古いオブジェクト削除
+                Destroy(targetCard.gameObject);
+                Destroy(gameObject);
+
+                // UI更新（ここで新カードが生成され、Setupが呼ばれるはず）
+                onHandChanged?.Invoke();
+            });
+        }
+        else
+        {
+            // Fallback (VFXManagerなし)
+            gm.hand.Remove(cardData);
+            gm.hand.Remove(targetCard.cardData);
+            gm.hand.Add(resultCard);
+            if (EncyclopediaManager.Instance != null) EncyclopediaManager.Instance.UnlockCard(resultCard.cardId);
+            Destroy(targetCard.gameObject);
+            Destroy(gameObject);
+            onHandChanged?.Invoke();
+        }
     }
 
 
@@ -356,7 +381,7 @@ public class CardController : MonoBehaviour,
     /// <summary>
     /// 合成プレビューを非表示
     /// </summary>
-    private void HideFusionPreview()
+    public void HideFusionPreview()
     {
         isHighlighted = false;
 
@@ -366,12 +391,50 @@ public class CardController : MonoBehaviour,
             cardBackground.color = originalColor;
         }
 
+        if (kanjiText != null && cardData != null)
+        {
+            kanjiText.text = cardData.kanji;
+            kanjiText.color = Color.white;
+            kanjiText.fontSize = 28;
+        }
+
         if (fusionPreviewObj != null)
         {
             fusionPreviewObj.SetActive(false);
         }
     }
 
+    /// <summary>
+    /// 右クリックで分解
+    /// </summary>
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        if (eventData.button == PointerEventData.InputButton.Right)
+        {
+            var gm = GameManager.Instance;
+            if (gm != null && gm.currentState == GameState.Battle && cardData != null)
+            {
+                if (cardData.isFusionResult)
+                {
+                    bool decomposed = gm.DecomposeCard(cardData);
+                    if (decomposed)
+                    {
+                        // 自身を破棄
+                        Destroy(this.gameObject);
+                        // HandUIの更新予約などのためBattleManager経由でUI更新
+                        if (gm.battleManager != null && gm.battleManager.battleUI != null)
+                        {
+                            gm.battleManager.battleUI.UpdateHandUI();
+                        }
+                    }
+                }
+                else
+                {
+                    Debug.Log($"[CardController] 『{cardData.kanji}』は基礎カードのため分解できません");
+                }
+            }
+        }
+    }
     // ============================================
     // ユーティリティ
     // ============================================

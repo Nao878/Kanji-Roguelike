@@ -59,6 +59,15 @@ public class ProjectSetupTool : EditorWindow
         var fusionPanel = CreateFusionPanel(canvas.transform);
         var shopPanel = CreateShopPanel(canvas.transform);
         var dojoPanel = CreateDojoPanel(canvas.transform);
+        var deckViewerPanel = CreateDeckViewerPanel(canvas.transform);
+        var encyclopediaPanel = CreateEncyclopediaPanel(canvas.transform);
+        var fusionSelectionPanel = CreateFusionSelectionPanel(canvas.transform);
+
+        // MapPanelにボタンを接続
+        var mapDeckBtn = mapPanel.transform.Find("MapDeckBtn")?.GetComponent<Button>();
+        if (mapDeckBtn != null) mapDeckBtn.onClick.AddListener(() => deckViewerPanel.SetActive(true));
+        var mapEncycBtn = mapPanel.transform.Find("MapEncycBtn")?.GetComponent<Button>();
+        if (mapEncycBtn != null) mapEncycBtn.onClick.AddListener(() => encyclopediaPanel.SetActive(true));
 
         // 参照の割り当て
         AssignReferences(gameManager, battleManager, mapManager, fusionEngine, mapPanel, battlePanel, fusionPanel, shopPanel, dojoPanel);
@@ -124,11 +133,12 @@ public class ProjectSetupTool : EditorWindow
     // ====================================
     private static void CreateFolders()
     {
-        string[] folders = {
-            "Assets/Data",
-            "Assets/Data/Cards",
-            "Assets/Data/Recipes",
-            "Assets/Data/Enemies"
+        string[] folders = new string[]
+        {
+            "Assets/Resources",
+            "Assets/Resources/CardData",
+            "Assets/Resources/Recipes",
+            "Assets/Resources/Enemies"
         };
 
         foreach (var folder in folders)
@@ -206,7 +216,7 @@ public class ProjectSetupTool : EditorWindow
 
         foreach (var def in cardDefs)
         {
-            string path = $"Assets/Data/Cards/Card_{def.kanji}.asset";
+            string path = $"Assets/Resources/CardData/Card_{def.kanji}.asset";
 
             var existing = AssetDatabase.LoadAssetAtPath<KanjiCardData>(path);
             if (existing != null) AssetDatabase.DeleteAsset(path);
@@ -312,7 +322,7 @@ public class ProjectSetupTool : EditorWindow
                 continue;
             }
 
-            string path = $"Assets/Data/Recipes/Recipe_{def.mat1}_{def.mat2}_{def.mat3}.asset";
+            string path = $"Assets/Resources/Recipes/Recipe_{def.mat1}_{def.mat2}_{def.mat3}.asset";
             var existing = AssetDatabase.LoadAssetAtPath<KanjiFusionRecipe>(path);
             if (existing != null) AssetDatabase.DeleteAsset(path);
 
@@ -335,14 +345,19 @@ public class ProjectSetupTool : EditorWindow
     // ====================================
     private static KanjiFusionDatabase CreateFusionDatabase(List<KanjiFusionRecipe> recipes)
     {
-        string path = "Assets/Data/FusionDatabase.asset";
-        var existing = AssetDatabase.LoadAssetAtPath<KanjiFusionDatabase>(path);
-        if (existing != null) AssetDatabase.DeleteAsset(path);
+        string dbPath = "Assets/Resources/Recipes/KanjiFusionDatabase.asset";
+        var existing = AssetDatabase.LoadAssetAtPath<KanjiFusionDatabase>(dbPath);
+        if (existing != null) AssetDatabase.DeleteAsset(dbPath);
+
+        if (!AssetDatabase.IsValidFolder("Assets/Resources")) AssetDatabase.CreateFolder("Assets", "Resources");
+        if (!AssetDatabase.IsValidFolder("Assets/Resources/CardData")) AssetDatabase.CreateFolder("Assets/Resources", "CardData");
+        if (!AssetDatabase.IsValidFolder("Assets/Resources/Recipes")) AssetDatabase.CreateFolder("Assets/Resources", "Recipes");
+        if (!AssetDatabase.IsValidFolder("Assets/Resources/Enemies")) AssetDatabase.CreateFolder("Assets/Resources", "Enemies");
 
         var db = ScriptableObject.CreateInstance<KanjiFusionDatabase>();
         db.recipes = recipes;
 
-        AssetDatabase.CreateAsset(db, path);
+        AssetDatabase.CreateAsset(db, dbPath);
         Debug.Log($"  合成データベース作成: {recipes.Count}レシピ");
         return db;
     }
@@ -364,7 +379,7 @@ public class ProjectSetupTool : EditorWindow
 
         foreach (var def in enemyDefs)
         {
-            string path = $"Assets/Data/Enemies/Enemy_{def.name}.asset";
+            string path = $"Assets/Resources/Enemies/Enemy_{def.name}.asset";
             var existing = AssetDatabase.LoadAssetAtPath<EnemyData>(path);
             if (existing != null) AssetDatabase.DeleteAsset(path);
 
@@ -390,6 +405,7 @@ public class ProjectSetupTool : EditorWindow
     {
         var go = new GameObject("GameManager");
         var gm = go.AddComponent<GameManager>();
+        go.AddComponent<EncyclopediaManager>();
         gm.fusionDatabase = database;
         return gm;
     }
@@ -521,6 +537,14 @@ public class ProjectSetupTool : EditorWindow
         var goldText = CreateText(panel.transform, "GoldText", "金: 50G", 22,
             new Vector2(0.8f, 0.91f), new Vector2(0.98f, 0.99f), new Color(1f, 0.85f, 0.2f));
 
+        // 山札確認ボタン
+        CreateButton(panel.transform, "MapDeckBtn", "🎴 山札", 18,
+            new Vector2(0.3f, 0.91f), new Vector2(0.45f, 0.98f), new Color(0.4f, 0.5f, 0.4f), null);
+
+        // 漢字図鑑ボタン
+        CreateButton(panel.transform, "MapEncycBtn", "📖 図鑑", 18,
+            new Vector2(0.5f, 0.91f), new Vector2(0.65f, 0.98f), new Color(0.4f, 0.4f, 0.5f), null);
+
         // マップコンテンツエリア
         var mapContent = new GameObject("MapContent");
         mapContent.transform.SetParent(panel.transform, false);
@@ -565,15 +589,62 @@ public class ProjectSetupTool : EditorWindow
         var enemyNameText = CreateText(enemyDropArea.transform, "EnemyNameText", "敵の名前", 24,
             new Vector2(0.1f, 0.1f), new Vector2(0.9f, 0.35f), Color.white);
 
-        var enemyHPText = CreateText(enemyDropArea.transform, "EnemyHPText", "HP: 20/20", 22,
-            new Vector2(0.2f, 0.0f), new Vector2(0.8f, 0.15f), new Color(1f, 0.4f, 0.4f));
+        var enemyHPText = CreateText(enemyDropArea.transform, "EnemyHPText", "HP: 10/10", 20,
+            new Vector2(0.1f, -0.1f), new Vector2(0.9f, 0.1f), new Color(1f, 0.4f, 0.4f));
 
         // プレイヤー情報
         var playerHPText = CreateText(panel.transform, "PlayerHPText", "HP: 50/50", 24,
-            new Vector2(0.02f, 0.28f), new Vector2(0.25f, 0.38f), new Color(0.4f, 1f, 0.4f));
+            new Vector2(0.02f, 0.38f), new Vector2(0.25f, 0.48f), new Color(0.4f, 1f, 0.4f));
 
         var playerManaText = CreateText(panel.transform, "PlayerManaText", "マナ: 3/3", 22,
-            new Vector2(0.02f, 0.2f), new Vector2(0.25f, 0.3f), new Color(0.4f, 0.6f, 1f));
+            new Vector2(0.02f, 0.30f), new Vector2(0.25f, 0.40f), new Color(0.4f, 0.6f, 1f));
+
+        // バトル専用合体エリア（3枚合体対応）
+        var battleFusionArea = new GameObject("BattleFusionArea");
+        battleFusionArea.transform.SetParent(panel.transform, false);
+        var bfaRect = battleFusionArea.AddComponent<RectTransform>();
+        bfaRect.anchorMin = new Vector2(0.1f, 0.19f);
+        bfaRect.anchorMax = new Vector2(0.65f, 0.34f);
+        bfaRect.offsetMin = Vector2.zero;
+        bfaRect.offsetMax = Vector2.zero;
+        var bfaImage = battleFusionArea.AddComponent<Image>();
+        bfaImage.color = new Color(0.2f, 0.2f, 0.25f, 0.8f);
+
+        var bfaTitle = CreateText(battleFusionArea.transform, "BFTitle", "合体エリア\n(ここにドロップ)", 14,
+            new Vector2(0.02f, 0.6f), new Vector2(0.25f, 0.9f), new Color(0.7f, 0.7f, 0.8f));
+
+        var bfaSlotContainer = new GameObject("SlotContainer");
+        bfaSlotContainer.transform.SetParent(battleFusionArea.transform, false);
+        var bfaSlotRect = bfaSlotContainer.AddComponent<RectTransform>();
+        bfaSlotRect.anchorMin = new Vector2(0.28f, 0.05f);
+        bfaSlotRect.anchorMax = new Vector2(0.85f, 0.95f);
+        bfaSlotRect.offsetMin = Vector2.zero;
+        bfaSlotRect.offsetMax = Vector2.zero;
+        var bfaHlg = bfaSlotContainer.AddComponent<HorizontalLayoutGroup>();
+        bfaHlg.spacing = 10;
+        bfaHlg.childAlignment = TextAnchor.MiddleCenter;
+        bfaHlg.childControlWidth = false;
+        bfaHlg.childControlHeight = false;
+
+        var bfaActionArea = new GameObject("ActionArea");
+        bfaActionArea.transform.SetParent(battleFusionArea.transform, false);
+        var bfaActionRect = bfaActionArea.AddComponent<RectTransform>();
+        bfaActionRect.anchorMin = new Vector2(0.86f, 0.05f);
+        bfaActionRect.anchorMax = new Vector2(0.98f, 0.95f);
+        bfaActionRect.offsetMin = Vector2.zero;
+        bfaActionRect.offsetMax = Vector2.zero;
+
+        var bfaFuseBtn = CreateButton(bfaActionArea.transform, "FuseBtn", "合体", 14,
+            new Vector2(0, 0.55f), new Vector2(1, 1), new Color(0.8f, 0.5f, 0.2f), null);
+        var bfaClearBtn = CreateButton(bfaActionArea.transform, "ClearBtn", "戻す", 14,
+            new Vector2(0, 0), new Vector2(1, 0.45f), new Color(0.4f, 0.4f, 0.5f), null);
+
+        var bfaComponent = battleFusionArea.AddComponent<BattleFusionArea>();
+        bfaComponent.slotContainer = bfaSlotRect;
+        bfaComponent.fuseButton = bfaFuseBtn.GetComponent<Button>();
+        bfaComponent.clearButton = bfaClearBtn.GetComponent<Button>();
+
+        // プレイヤー情報は上で作成済みなので削除
 
         // 手札エリア
         var handArea = new GameObject("HandArea");
@@ -881,6 +952,158 @@ public class ProjectSetupTool : EditorWindow
     }
 
     // ====================================
+    // デッキ確認パネル作成
+    // ====================================
+    private static GameObject CreateDeckViewerPanel(Transform parent)
+    {
+        var panel = CreatePanel(parent, "DeckViewerPanel", new Color(0.1f, 0.15f, 0.1f, 0.98f));
+
+        var titleText = CreateText(panel.transform, "Title", "🎴 山札確認 🎴", 40, new Vector2(0, 0.85f), new Vector2(1, 0.95f), TextAlignmentOptions.Center);
+        var closeBtn = CreateButton(panel.transform, "CloseBtn", "閉じる", 22, new Vector2(0.4f, 0.05f), new Vector2(0.6f, 0.12f), new Color(0.5f, 0.3f, 0.3f), null);
+
+        var scrollView = new GameObject("CardScrollView");
+        scrollView.transform.SetParent(panel.transform, false);
+        var svRect = scrollView.AddComponent<RectTransform>();
+        svRect.anchorMin = new Vector2(0.1f, 0.15f);
+        svRect.anchorMax = new Vector2(0.9f, 0.8f);
+        svRect.offsetMin = Vector2.zero;
+        svRect.offsetMax = Vector2.zero;
+        
+        var scrollRect = scrollView.AddComponent<ScrollRect>();
+        var viewport = new GameObject("Viewport");
+        viewport.transform.SetParent(scrollView.transform, false);
+        var vpRect = viewport.AddComponent<RectTransform>();
+        vpRect.anchorMin = Vector2.zero;
+        vpRect.anchorMax = Vector2.one;
+        vpRect.offsetMin = Vector2.zero;
+        vpRect.offsetMax = Vector2.zero;
+        var vpMask = viewport.AddComponent<Image>();
+        viewport.AddComponent<Mask>().showMaskGraphic = false;
+
+        var content = new GameObject("Content");
+        content.transform.SetParent(viewport.transform, false);
+        var contentRect = content.AddComponent<RectTransform>();
+        contentRect.anchorMin = new Vector2(0, 1);
+        contentRect.anchorMax = new Vector2(1, 1);
+        contentRect.pivot = new Vector2(0.5f, 1);
+        contentRect.sizeDelta = new Vector2(0, 300);
+
+        var grid = content.AddComponent<GridLayoutGroup>();
+        grid.cellSize = new Vector2(90, 130);
+        grid.spacing = new Vector2(15, 15);
+        grid.padding = new RectOffset(20, 20, 20, 20);
+        grid.childAlignment = TextAnchor.UpperCenter;
+        
+        var csf = content.AddComponent<ContentSizeFitter>();
+        csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        scrollRect.content = contentRect;
+        scrollRect.viewport = vpRect;
+        scrollRect.horizontal = false;
+        scrollRect.vertical = true;
+        scrollRect.scrollSensitivity = 20;
+
+        var ui = panel.AddComponent<DeckViewerUI>();
+        ui.cardListArea = contentRect;
+        ui.closeButton = closeBtn.GetComponent<Button>();
+
+        panel.SetActive(false);
+        return panel;
+    }
+
+    // ====================================
+    // 漢字図鑑パネル作成
+    // ====================================
+    private static GameObject CreateEncyclopediaPanel(Transform parent)
+    {
+        var panel = CreatePanel(parent, "EncyclopediaPanel", new Color(0.1f, 0.1f, 0.15f, 0.98f));
+
+        var titleText = CreateText(panel.transform, "Title", "📖 漢字図鑑 📖", 40, new Vector2(0, 0.85f), new Vector2(1, 0.95f), TextAlignmentOptions.Center);
+        var statusText = CreateText(panel.transform, "Status", "漢字収集率: 0 / 0", 24, new Vector2(0.05f, 0.88f), new Vector2(0.3f, 0.95f), TextAlignmentOptions.Left);
+        var closeBtn = CreateButton(panel.transform, "CloseBtn", "閉じる", 22, new Vector2(0.4f, 0.05f), new Vector2(0.6f, 0.12f), new Color(0.5f, 0.3f, 0.3f), null);
+
+        var scrollView = new GameObject("CardScrollView");
+        scrollView.transform.SetParent(panel.transform, false);
+        var svRect = scrollView.AddComponent<RectTransform>();
+        svRect.anchorMin = new Vector2(0.1f, 0.15f);
+        svRect.anchorMax = new Vector2(0.9f, 0.8f);
+        svRect.offsetMin = Vector2.zero;
+        svRect.offsetMax = Vector2.zero;
+        
+        var scrollRect = scrollView.AddComponent<ScrollRect>();
+        var viewport = new GameObject("Viewport");
+        viewport.transform.SetParent(scrollView.transform, false);
+        var vpRect = viewport.AddComponent<RectTransform>();
+        vpRect.anchorMin = Vector2.zero;
+        vpRect.anchorMax = Vector2.one;
+        vpRect.offsetMin = Vector2.zero;
+        vpRect.offsetMax = Vector2.zero;
+        var vpMask = viewport.AddComponent<Image>();
+        viewport.AddComponent<Mask>().showMaskGraphic = false;
+
+        var content = new GameObject("Content");
+        content.transform.SetParent(viewport.transform, false);
+        var contentRect = content.AddComponent<RectTransform>();
+        contentRect.anchorMin = new Vector2(0, 1);
+        contentRect.anchorMax = new Vector2(1, 1);
+        contentRect.pivot = new Vector2(0.5f, 1);
+        contentRect.sizeDelta = new Vector2(0, 300);
+
+        var grid = content.AddComponent<GridLayoutGroup>();
+        grid.cellSize = new Vector2(90, 130);
+        grid.spacing = new Vector2(15, 15);
+        grid.padding = new RectOffset(20, 20, 20, 20);
+        grid.childAlignment = TextAnchor.UpperCenter;
+        
+        var csf = content.AddComponent<ContentSizeFitter>();
+        csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        scrollRect.content = contentRect;
+        scrollRect.viewport = vpRect;
+        scrollRect.horizontal = false;
+        scrollRect.vertical = true;
+        scrollRect.scrollSensitivity = 20;
+
+        var ui = panel.AddComponent<KanjiEncyclopediaUI>();
+        ui.cardListArea = contentRect;
+        ui.closeButton = closeBtn.GetComponent<Button>();
+        ui.statusText = statusText;
+
+        panel.SetActive(false);
+        return panel;
+    }
+
+    // ====================================
+    // 合体結果選択パネル作成
+    // ====================================
+    private static GameObject CreateFusionSelectionPanel(Transform parent)
+    {
+        var panel = CreatePanel(parent, "FusionSelectionPanel", new Color(0.1f, 0.1f, 0.1f, 0.95f));
+
+        var titleText = CreateText(panel.transform, "Title", "合体結果を選択", 36, new Vector2(0, 0.8f), new Vector2(1, 0.95f), TextAlignmentOptions.Center);
+        
+        var content = new GameObject("Content");
+        content.transform.SetParent(panel.transform, false);
+        var contentRect = content.AddComponent<RectTransform>();
+        contentRect.anchorMin = new Vector2(0.1f, 0.2f);
+        contentRect.anchorMax = new Vector2(0.9f, 0.7f);
+        contentRect.offsetMin = Vector2.zero;
+        contentRect.offsetMax = Vector2.zero;
+
+        var hlg = content.AddComponent<HorizontalLayoutGroup>();
+        hlg.spacing = 30;
+        hlg.childAlignment = TextAnchor.MiddleCenter;
+        hlg.childControlWidth = false;
+        hlg.childControlHeight = false;
+
+        var ui = panel.AddComponent<FusionSelectionUI>();
+        ui.cardListArea = content.transform;
+
+        panel.SetActive(false);
+        return panel;
+    }
+
+    // ====================================
     // 参照の割り当て
     // ====================================
     private static void AssignReferences(GameManager gm, BattleManager bm, MapManager mm, KanjiFusionEngine fe,
@@ -894,6 +1117,9 @@ public class ProjectSetupTool : EditorWindow
         gm.fusionPanel = fusionPanel;
         gm.shopPanel = shopPanel;
         gm.dojoPanel = dojoPanel;
+        
+        var canvasTransform = mapPanel.transform.parent;
+        gm.fusionSelectionUI = canvasTransform.Find("FusionSelectionPanel")?.GetComponent<FusionSelectionUI>();
 
         // ランタイムUIコンポーネントにAppFont参照を割り当て
         if (appFont != null)
@@ -907,6 +1133,9 @@ public class ProjectSetupTool : EditorWindow
                 bm.battleUI = battleUI; // BattleManagerからBattleUIへの参照
             }
 
+            var bfa = battlePanel.transform.Find("BattleFusionArea")?.GetComponent<BattleFusionArea>();
+            if (bfa != null) bfa.appFont = appFont;
+
             var fusionUI = fusionPanel.GetComponent<FusionUI>();
             if (fusionUI != null) fusionUI.appFont = appFont;
 
@@ -915,6 +1144,14 @@ public class ProjectSetupTool : EditorWindow
 
             var deckEditUI = dojoPanel.GetComponent<DeckEditUI>();
             if (deckEditUI != null) deckEditUI.appFont = appFont;
+
+            var deckViewer = canvasTransform.Find("DeckViewerPanel")?.GetComponent<DeckViewerUI>();
+            if (deckViewer != null) deckViewer.appFont = appFont;
+            
+            var encycViewer = canvasTransform.Find("EncyclopediaPanel")?.GetComponent<KanjiEncyclopediaUI>();
+            if (encycViewer != null) encycViewer.appFont = appFont;
+            
+            if (gm.fusionSelectionUI != null) gm.fusionSelectionUI.appFont = appFont;
         }
         else
         {

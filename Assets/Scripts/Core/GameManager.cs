@@ -41,6 +41,15 @@ public class GameManager : MonoBehaviour
     public GameObject fusionPanel;
     public GameObject shopPanel;
     public GameObject dojoPanel;
+    public FusionSelectionUI fusionSelectionUI;
+
+    public void ShowFusionSelectionUI(List<int> resultIds, System.Action<int> onSelected)
+    {
+        if (fusionSelectionUI != null)
+        {
+            fusionSelectionUI.ShowSelection(resultIds, onSelected);
+        }
+    }
 
     // 合成レシピDictionary（高速検索用、複数結果対応）
     private Dictionary<(int, int), List<int>> fusionRecipeDict = new Dictionary<(int, int), List<int>>();
@@ -82,6 +91,15 @@ public class GameManager : MonoBehaviour
 
         // 合成レシピDictionaryを初期化
         InitializeFusionRecipes();
+
+        // 初期デッキを図鑑に登録
+        if (EncyclopediaManager.Instance != null && deck != null)
+        {
+            foreach (var card in deck)
+            {
+                EncyclopediaManager.Instance.UnlockCard(card.cardId);
+            }
+        }
 
         ChangeState(GameState.Map);
     }
