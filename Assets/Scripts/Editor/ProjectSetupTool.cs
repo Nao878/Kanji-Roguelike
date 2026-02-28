@@ -1176,12 +1176,13 @@ public class ProjectSetupTool : EditorWindow
     {
         gm.deck.Clear();
 
-        // 初期デッキ: 木x4, 火x2, 日x2, 月x1, 力x1
-        AddCardsToDeck(gm, cards, "木", 4);
-        AddCardsToDeck(gm, cards, "火", 2);
-        AddCardsToDeck(gm, cards, "日", 2);
-        AddCardsToDeck(gm, cards, "月", 1);
-        AddCardsToDeck(gm, cards, "力", 1);
+        // 初期デッキ: ユーザー指定の基本漢字 各2枚ずつ
+        string[] basicKanjis = { "木", "日", "月", "力", "火", "田", "口", "十", "大", "土", "人", "目", "白", "公", "民" };
+        
+        foreach (string k in basicKanjis)
+        {
+            AddCardsToDeck(gm, cards, k, 2);
+        }
 
         EditorUtility.SetDirty(gm);
         Debug.Log($"  初期デッキ設定完了: {gm.deck.Count}枚");

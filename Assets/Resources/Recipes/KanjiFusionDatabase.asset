@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cde4b0bd0b180ff41845f85ec2961f5b, type: 3}
+  m_Name: KanjiFusionDatabase
+  m_EditorClassIdentifier: Assembly-CSharp::KanjiFusionDatabase
+  recipes:
+  - {fileID: 11400000, guid: 078ab7b0a89f16149841494e23ae055a, type: 2}
+  - {fileID: 11400000, guid: cec11ebe50ef41e46b720163931d3803, type: 2}
+  - {fileID: 11400000, guid: cd1453c0a524dc14083f19824a5a0203, type: 2}
+  - {fileID: 11400000, guid: 55138097329e3394eb8b63cb6ec11255, type: 2}
+  - {fileID: 11400000, guid: 833d9da7d1e7f7f40a92d28dffa04076, type: 2}
+  - {fileID: 11400000, guid: 02e42d1cca9daca44876da98e42a5744, type: 2}
+  - {fileID: 11400000, guid: 694cf9251cd432c42bf1c9d96b8363ca, type: 2}
+  - {fileID: 11400000, guid: 8504c63d2372b2c4eb5b4203b4331841, type: 2}
+  - {fileID: 11400000, guid: cc3c327b4bf0bc541a256648e696fbf9, type: 2}
+  - {fileID: 11400000, guid: a899121ac5a83114e8169d0cbf927f3c, type: 2}
+  - {fileID: 11400000, guid: f51632a4c135517488065e1a705887d4, type: 2}
+  - {fileID: 11400000, guid: b9f357556325f9142a0373bfa389fdb4, type: 2}
+  - {fileID: 11400000, guid: d653183a9cadc4246895d2352d0da777, type: 2}
+  - {fileID: 11400000, guid: 492e78f235b0b9840a176874eb313ee2, type: 2}
+  - {fileID: 11400000, guid: c2cdc46d095395a4bbfd4bcdd4bf1891, type: 2}
+  - {fileID: 11400000, guid: 830ccc35b036d1e4d99ce1ddc78103e6, type: 2}
+  - {fileID: 11400000, guid: f49948009f9e2e945ada293b82007201, type: 2}
+  - {fileID: 11400000, guid: 7ad3599c45205b740908ed20e1cc12cf, type: 2}
+  - {fileID: 11400000, guid: 3122875251fc7104b8392b5a196778a8, type: 2}
+  - {fileID: 11400000, guid: e94fcb3188330de4a938b0502b206112, type: 2}
+  - {fileID: 11400000, guid: 95aa64f097b72134ab09a63da8046925, type: 2}
+  - {fileID: 11400000, guid: 8a36bb7f3c1e22d45b59b6f3359d33e2, type: 2}

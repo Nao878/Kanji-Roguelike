@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 93427485613949d4d8f07a10b994844f, type: 3}
   m_Name: "Recipe_\u65E5_\u65E5_\u65E5"
   m_EditorClassIdentifier: Assembly-CSharp::KanjiFusionRecipe
-  material1: {fileID: 11400000, guid: ed70bf01accc3bf499dbc02b55ec7453, type: 2}
-  material2: {fileID: 11400000, guid: ed70bf01accc3bf499dbc02b55ec7453, type: 2}
-  material3: {fileID: 11400000, guid: ed70bf01accc3bf499dbc02b55ec7453, type: 2}
-  result: {fileID: 11400000, guid: 5e117b58b427c444f92fee91dd2575df, type: 2}
+  material1: {fileID: 11400000, guid: 727dc1f54e2a72942a020099e922e809, type: 2}
+  material2: {fileID: 11400000, guid: 727dc1f54e2a72942a020099e922e809, type: 2}
+  material3: {fileID: 11400000, guid: 727dc1f54e2a72942a020099e922e809, type: 2}
+  result: {fileID: 11400000, guid: 7242a6314b47e0e47894b845ec7b9c9a, type: 2}
