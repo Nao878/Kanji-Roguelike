@@ -261,10 +261,15 @@ public class CardController : MonoBehaviour,
             // 合体演出再生
             VFXManager.Instance.PlayFusionSequence(this, targetCard, () =>
             {
-                // データ更新
+                // データ更新：手札から素材を除去
                 gm.hand.Remove(cardData);
                 gm.hand.Remove(targetCard.cardData);
+                // インベントリから素材を除去（消費型）
+                gm.inventory.Remove(cardData);
+                gm.inventory.Remove(targetCard.cardData);
+                // 結果を手札とインベントリに追加
                 gm.hand.Add(resultCard);
+                gm.AddToInventory(resultCard);
                 if (EncyclopediaManager.Instance != null) EncyclopediaManager.Instance.UnlockCard(resultCard.cardId);
 
                 // 古いオブジェクト削除
@@ -280,7 +285,10 @@ public class CardController : MonoBehaviour,
             // Fallback (VFXManagerなし)
             gm.hand.Remove(cardData);
             gm.hand.Remove(targetCard.cardData);
+            gm.inventory.Remove(cardData);
+            gm.inventory.Remove(targetCard.cardData);
             gm.hand.Add(resultCard);
+            gm.AddToInventory(resultCard);
             if (EncyclopediaManager.Instance != null) EncyclopediaManager.Instance.UnlockCard(resultCard.cardId);
             Destroy(targetCard.gameObject);
             Destroy(gameObject);

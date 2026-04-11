@@ -17,3 +17,4 @@ MonoBehaviour:
   maxHP: 30
   attackPower: 7
   enemyType: 1
+  dropCard: {fileID: 11400000, guid: 3182126a5903c3049836a39eed1d67f2, type: 2}

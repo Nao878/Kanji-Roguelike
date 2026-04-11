@@ -22,6 +22,10 @@ public class EnemyData : ScriptableObject
 
     [Tooltip("敵タイプ")]
     public EnemyType enemyType = EnemyType.Normal;
+
+    [Header("ドロップ")]
+    [Tooltip("撃破時にドロップする漢字カード")]
+    public KanjiCardData dropCard;
 }
 
 public enum EnemyType

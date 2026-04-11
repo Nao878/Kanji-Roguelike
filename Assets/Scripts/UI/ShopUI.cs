@@ -226,7 +226,14 @@ public class ShopUI : MonoBehaviour
         }
 
         gm.playerGold -= price;
-        gm.deck.Add(card);
+        bool added = gm.AddToInventory(card);
+
+        if (!added)
+        {
+            gm.playerGold += price; // 失敗時は返金
+            if (statusText != null) statusText.text = "インベントリが満杯！";
+            return;
+        }
 
         if (EncyclopediaManager.Instance != null)
         {
@@ -236,7 +243,7 @@ public class ShopUI : MonoBehaviour
         Debug.Log($"[ShopUI] 『{card.kanji}』を{price}Gで購入！");
 
         if (statusText != null)
-            statusText.text = $"『{card.kanji}』を購入！ デッキに追加しました";
+            statusText.text = $"『{card.kanji}』を購入！ インベントリに追加しました";
 
         // 購入済み処理：ボタンを無効化しテキストを「売切」に
         if (cardObj != null)
@@ -270,7 +277,7 @@ public class ShopUI : MonoBehaviour
     {
         if (GameManager.Instance != null)
         {
-            GameManager.Instance.ChangeState(GameState.Map);
+            GameManager.Instance.ChangeState(GameState.Field);
         }
     }
 

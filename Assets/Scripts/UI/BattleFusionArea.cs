@@ -187,8 +187,15 @@ public class BattleFusionArea : MonoBehaviour
         var resultCard = gm.GetCardById(resultId);
         if (resultCard == null) return;
 
-        // 手札に加える
+        // インベントリから素材を削除（消費型）
+        foreach (var mat in slottedCards)
+        {
+            gm.inventory.Remove(mat);
+        }
+
+        // 結果を手札とインベントリに追加
         gm.hand.Add(resultCard);
+        gm.AddToInventory(resultCard);
         if (EncyclopediaManager.Instance != null) EncyclopediaManager.Instance.UnlockCard(resultId);
 
         // スロットをクリア

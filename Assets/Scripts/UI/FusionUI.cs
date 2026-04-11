@@ -67,11 +67,9 @@ public class FusionUI : MonoBehaviour
         var gm = GameManager.Instance;
         if (gm == null) return;
 
-        // デッキ＋手札＋捨て札の全所持カードを表示
+        // インベントリ内の全カードを表示
         var allCards = new List<KanjiCardData>();
-        allCards.AddRange(gm.deck);
-        allCards.AddRange(gm.hand);
-        allCards.AddRange(gm.discardPile);
+        allCards.AddRange(gm.inventory);
 
         foreach (var card in allCards)
         {
@@ -202,12 +200,12 @@ public class FusionUI : MonoBehaviour
             // ゴールド消費
             gm.playerGold -= gm.fusionCost;
 
-            // デッキから素材カードを除去（全リストから探す）
-            RemoveCardFromAllPiles(gm, selectedCard1);
-            RemoveCardFromAllPiles(gm, selectedCard2);
+            // インベントリから素材カードを除去
+            gm.inventory.Remove(selectedCard1);
+            gm.inventory.Remove(selectedCard2);
 
-            // 結果カードをデッキに追加
-            gm.deck.Add(result);
+            // 結果カードをインベントリに追加
+            gm.AddToInventory(result);
 
             Debug.Log($"[FusionUI] 合体完了！ 『{selectedCard1.kanji}』+『{selectedCard2.kanji}』=『{result.kanji}』 ({gm.fusionCost}G消費)");
 
@@ -224,9 +222,7 @@ public class FusionUI : MonoBehaviour
 
     private void RemoveCardFromAllPiles(GameManager gm, KanjiCardData card)
     {
-        if (gm.deck.Remove(card)) return;
-        if (gm.hand.Remove(card)) return;
-        gm.discardPile.Remove(card);
+        gm.inventory.Remove(card);
     }
 
     private void OnClearClicked()
@@ -276,7 +272,7 @@ public class FusionUI : MonoBehaviour
     {
         if (GameManager.Instance != null)
         {
-            GameManager.Instance.ChangeState(GameState.Map);
+            GameManager.Instance.ChangeState(GameState.Field);
         }
     }
 }

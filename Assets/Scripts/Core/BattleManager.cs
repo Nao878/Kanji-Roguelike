@@ -222,7 +222,7 @@ public class BattleManager : MonoBehaviour
 
             case CardEffectType.Draw:
                 int drawCount = card.effectValue;
-                gm.DrawCards(drawCount);
+                gm.DrawFromInventory(drawCount);
                 AddBattleLog($"『{card.DisplayName}』でカードを{drawCount}枚ドロー！");
                 break;
 
@@ -351,12 +351,26 @@ public class BattleManager : MonoBehaviour
             if (GameManager.Instance != null)
             {
                 GameManager.Instance.playerGold += goldReward;
+
+                // ドロップカード処理：敵の漢字をインベントリに追加
+                if (currentEnemyData.dropCard != null)
+                {
+                    bool added = GameManager.Instance.AddToInventory(currentEnemyData.dropCard);
+                    if (added)
+                    {
+                        AddBattleLog($"<color=#FFD700>『{currentEnemyData.dropCard.kanji}』を手に入れた！</color>");
+                    }
+                    else
+                    {
+                        AddBattleLog($"<color=#FF6666>インベントリが満杯…『{currentEnemyData.dropCard.kanji}』を諦めた</color>");
+                    }
+                }
             }
             AddBattleLog($"勝利！ {goldReward}G獲得！");
             Debug.Log($"[BattleManager] 戦闘勝利！ {goldReward}G獲得");
 
-            // 少し待ってからマップに戻る
-            Invoke(nameof(ReturnToMap), 1.5f);
+            // 少し待ってからフィールドに戻る
+            Invoke(nameof(ReturnToField), 1.5f);
         }
         else if (GameManager.Instance != null && GameManager.Instance.playerHP <= 0)
         {
@@ -366,11 +380,19 @@ public class BattleManager : MonoBehaviour
         }
     }
 
-    private void ReturnToMap()
+    private void ReturnToField()
     {
+        // フィールドマネージャーに勝利通知
+        if (GameManager.Instance != null && GameManager.Instance.fieldManager != null)
+        {
+            GameManager.Instance.fieldManager.OnBattleWon();
+        }
+
+        // 手札クリア（戦闘終了）
         if (GameManager.Instance != null)
         {
-            GameManager.Instance.ChangeState(GameState.Map);
+            GameManager.Instance.hand.Clear();
+            GameManager.Instance.ChangeState(GameState.Field);
         }
     }
 

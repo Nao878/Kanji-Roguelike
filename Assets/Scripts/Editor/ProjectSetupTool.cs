@@ -43,18 +43,21 @@ public class ProjectSetupTool : EditorWindow
         var cards = CreateCardData();
         var recipes = CreateFusionRecipes(cards);
         var database = CreateFusionDatabase(recipes);
-        var enemies = CreateEnemyData();
+        var enemies = CreateEnemyData(cards);
 
         // シーンオブジェクト生成
         var gameManager = CreateGameManager(database, cards);
         var battleManager = CreateBattleManager(enemies);
         var mapManager = CreateMapManager();
+        var fieldManager = CreateFieldManager();
         var fusionEngine = CreateFusionEngine(database);
         var vfxManager = CreateVFXManager();
         var canvas = CreateCanvas();
 
         // UIパネル作成
+        var fieldPanel = CreateFieldPanel(canvas.transform, fieldManager);
         var mapPanel = CreateMapPanel(canvas.transform, mapManager);
+        mapPanel.SetActive(false); // 旧マップは非表示
         var battlePanel = CreateBattlePanel(canvas.transform, battleManager);
         var fusionPanel = CreateFusionPanel(canvas.transform);
         var shopPanel = CreateShopPanel(canvas.transform);
@@ -63,17 +66,17 @@ public class ProjectSetupTool : EditorWindow
         var encyclopediaPanel = CreateEncyclopediaPanel(canvas.transform);
         var fusionSelectionPanel = CreateFusionSelectionPanel(canvas.transform);
 
-        // MapPanelにボタンを接続
-        var mapDeckBtn = mapPanel.transform.Find("MapDeckBtn")?.GetComponent<Button>();
-        if (mapDeckBtn != null) mapDeckBtn.onClick.AddListener(() => deckViewerPanel.SetActive(true));
-        var mapEncycBtn = mapPanel.transform.Find("MapEncycBtn")?.GetComponent<Button>();
-        if (mapEncycBtn != null) mapEncycBtn.onClick.AddListener(() => encyclopediaPanel.SetActive(true));
+        // フィールドパネルにボタンを接続
+        var fieldDeckBtn = fieldPanel.transform.Find("FieldDeckBtn")?.GetComponent<Button>();
+        if (fieldDeckBtn != null) fieldDeckBtn.onClick.AddListener(() => deckViewerPanel.SetActive(true));
+        var fieldEncycBtn = fieldPanel.transform.Find("FieldEncycBtn")?.GetComponent<Button>();
+        if (fieldEncycBtn != null) fieldEncycBtn.onClick.AddListener(() => encyclopediaPanel.SetActive(true));
 
         // 参照の割り当て
-        AssignReferences(gameManager, battleManager, mapManager, fusionEngine, mapPanel, battlePanel, fusionPanel, shopPanel, dojoPanel);
+        AssignReferences(gameManager, battleManager, mapManager, fieldManager, fusionEngine, fieldPanel, mapPanel, battlePanel, fusionPanel, shopPanel, dojoPanel);
 
-        // 初期デッキ設定
-        SetupInitialDeck(gameManager, cards);
+        // 初期インベントリ設定
+        SetupInitialInventory(gameManager, cards);
 
         // 仕様書生成
         GameDesignDocGenerator.Generate();
@@ -82,7 +85,7 @@ public class ProjectSetupTool : EditorWindow
         AssetDatabase.Refresh();
 
         Debug.Log("=== 漢字ローグライク セットアップ完了 ===");
-        Debug.Log("Playモードで実行してください！");
+        Debug.Log("PlayモードでWASDキーでフィールドを移動してください！");
     }
 
     // ====================================
@@ -90,7 +93,7 @@ public class ProjectSetupTool : EditorWindow
     // ====================================
     private static void CleanupExistingObjects()
     {
-        string[] objectNames = { "GameManager", "BattleManager", "MapManager", "FusionEngine", "VFXManager", "MainCanvas", "EventSystem" };
+        string[] objectNames = { "GameManager", "BattleManager", "MapManager", "FieldManager", "FusionEngine", "VFXManager", "MainCanvas", "EventSystem" };
         foreach (var name in objectNames)
         {
             var obj = GameObject.Find(name);
@@ -365,14 +368,15 @@ public class ProjectSetupTool : EditorWindow
     // ====================================
     // 敵データ作成
     // ====================================
-    private static EnemyData[] CreateEnemyData()
+    private static EnemyData[] CreateEnemyData(Dictionary<string, KanjiCardData> cards)
     {
-        var enemyDefs = new (string name, string kanji, int hp, int atk, EnemyType type)[]
+        // (名前, 漢字, HP, ATK, タイプ, ドロップ漢字キー)
+        var enemyDefs = new (string name, string kanji, int hp, int atk, EnemyType type, string dropKanji)[]
         {
-            ("スライム漢字", "字", 15, 3, EnemyType.Normal),
-            ("妖怪文字", "怪", 20, 5, EnemyType.Normal),
-            ("鬼", "鬼", 30, 7, EnemyType.Elite),
-            ("龍", "龍", 50, 10, EnemyType.Boss),
+            ("スライム漢字", "字", 15, 3, EnemyType.Normal, "木"),
+            ("妖怪文字", "怪", 20, 5, EnemyType.Normal, "火"),
+            ("鬼", "鬼", 30, 7, EnemyType.Elite, "力"),
+            ("龍", "龍", 50, 10, EnemyType.Boss, "大"),
         };
 
         var enemies = new List<EnemyData>();
@@ -390,9 +394,15 @@ public class ProjectSetupTool : EditorWindow
             enemy.attackPower = def.atk;
             enemy.enemyType = def.type;
 
+            // ドロップカード設定
+            if (!string.IsNullOrEmpty(def.dropKanji) && cards.ContainsKey(def.dropKanji))
+            {
+                enemy.dropCard = cards[def.dropKanji];
+            }
+
             AssetDatabase.CreateAsset(enemy, path);
             enemies.Add(enemy);
-            Debug.Log($"  敵作成: {def.kanji} {def.name} HP:{def.hp} ATK:{def.atk}");
+            Debug.Log($"  敵作成: {def.kanji} {def.name} HP:{def.hp} ATK:{def.atk} Drop:{def.dropKanji}");
         }
 
         return enemies.ToArray();
@@ -434,6 +444,13 @@ public class ProjectSetupTool : EditorWindow
         var go = new GameObject("MapManager");
         var mm = go.AddComponent<MapManager>();
         return mm;
+    }
+
+    private static FieldManager CreateFieldManager()
+    {
+        var go = new GameObject("FieldManager");
+        var fm = go.AddComponent<FieldManager>();
+        return fm;
     }
 
     private static KanjiFusionEngine CreateFusionEngine(KanjiFusionDatabase database)
@@ -510,7 +527,60 @@ public class ProjectSetupTool : EditorWindow
     }
 
     // ====================================
-    // マップパネル作成（漢字地形背景）
+    // フィールドパネル作成（2D見下ろし探索画面）
+    // ====================================
+    private static GameObject CreateFieldPanel(Transform parent, FieldManager fieldManager)
+    {
+        var panel = CreatePanel(parent, "FieldPanel", new Color(0.05f, 0.08f, 0.05f, 0.98f));
+
+        // タイトル
+        CreateText(panel.transform, "FieldTitle", "漢字の迷宮 ─ フィールド探索", 24,
+            new Vector2(0.1f, 0.93f), new Vector2(0.9f, 0.99f), new Color(0.9f, 0.95f, 0.85f));
+
+        // HP表示
+        var hpText = CreateText(panel.transform, "FieldHPText", "HP: 50/50", 20,
+            new Vector2(0.02f, 0.88f), new Vector2(0.2f, 0.93f), new Color(0.4f, 0.9f, 0.4f));
+
+        // 所持数表示
+        var inventoryText = CreateText(panel.transform, "FieldInvText", "所持: 30/30", 20,
+            new Vector2(0.22f, 0.88f), new Vector2(0.42f, 0.93f), new Color(0.8f, 0.8f, 0.5f));
+
+        // ゴールド表示
+        var goldText = CreateText(panel.transform, "FieldGoldText", "金: 50G", 20,
+            new Vector2(0.78f, 0.88f), new Vector2(0.98f, 0.93f), new Color(1f, 0.85f, 0.2f));
+
+        // デッキ確認ボタン
+        CreateButton(panel.transform, "FieldDeckBtn", "🎴 所持品", 16,
+            new Vector2(0.44f, 0.88f), new Vector2(0.58f, 0.93f), new Color(0.3f, 0.45f, 0.35f), null);
+
+        // 図鑑ボタン
+        CreateButton(panel.transform, "FieldEncycBtn", "📖 図鑑", 16,
+            new Vector2(0.6f, 0.88f), new Vector2(0.74f, 0.93f), new Color(0.35f, 0.35f, 0.45f), null);
+
+        // 操作ヒント
+        CreateText(panel.transform, "FieldHint", "WASD / 矢印キーで移動　敵に触れると戦闘", 14,
+            new Vector2(0.1f, 0.01f), new Vector2(0.9f, 0.05f), new Color(0.5f, 0.5f, 0.5f, 0.7f));
+
+        // フィールドコンテンツエリア（グリッド描画領域）
+        var fieldContent = new GameObject("FieldContent");
+        fieldContent.transform.SetParent(panel.transform, false);
+        var fieldRect = fieldContent.AddComponent<RectTransform>();
+        fieldRect.anchorMin = new Vector2(0.02f, 0.06f);
+        fieldRect.anchorMax = new Vector2(0.98f, 0.87f);
+        fieldRect.offsetMin = Vector2.zero;
+        fieldRect.offsetMax = Vector2.zero;
+
+        // FieldManagerの参照を設定
+        fieldManager.fieldContent = fieldRect;
+        fieldManager.hpText = hpText;
+        fieldManager.inventoryCountText = inventoryText;
+        fieldManager.goldText = goldText;
+
+        return panel;
+    }
+
+    // ====================================
+    // マップパネル作成（漢字地形背景）- 旧Slay the Spire型（非アクティブ）
     // ====================================
     private static GameObject CreateMapPanel(Transform parent, MapManager mapManager)
     {
@@ -1106,31 +1176,34 @@ public class ProjectSetupTool : EditorWindow
     // ====================================
     // 参照の割り当て
     // ====================================
-    private static void AssignReferences(GameManager gm, BattleManager bm, MapManager mm, KanjiFusionEngine fe,
-        GameObject mapPanel, GameObject battlePanel, GameObject fusionPanel, GameObject shopPanel, GameObject dojoPanel)
+    private static void AssignReferences(GameManager gm, BattleManager bm, MapManager mm, FieldManager fm, KanjiFusionEngine fe,
+        GameObject fieldPanel, GameObject mapPanel, GameObject battlePanel, GameObject fusionPanel, GameObject shopPanel, GameObject dojoPanel)
     {
         gm.battleManager = bm;
         gm.mapManager = mm;
+        gm.fieldManager = fm;
         gm.fusionEngine = fe;
+        gm.fieldPanel = fieldPanel;
         gm.mapPanel = mapPanel;
         gm.battlePanel = battlePanel;
         gm.fusionPanel = fusionPanel;
         gm.shopPanel = shopPanel;
         gm.dojoPanel = dojoPanel;
         
-        var canvasTransform = mapPanel.transform.parent;
+        var canvasTransform = fieldPanel.transform.parent;
         gm.fusionSelectionUI = canvasTransform.Find("FusionSelectionPanel")?.GetComponent<FusionSelectionUI>();
 
         // ランタイムUIコンポーネントにAppFont参照を割り当て
         if (appFont != null)
         {
             mm.appFont = appFont;
+            fm.appFont = appFont;
 
             var battleUI = battlePanel.GetComponent<BattleUI>();
             if (battleUI != null)
             {
                 battleUI.appFont = appFont;
-                bm.battleUI = battleUI; // BattleManagerからBattleUIへの参照
+                bm.battleUI = battleUI;
             }
 
             var bfa = battlePanel.transform.Find("BattleFusionArea")?.GetComponent<BattleFusionArea>();
@@ -1155,15 +1228,14 @@ public class ProjectSetupTool : EditorWindow
         }
         else
         {
-            // appFontがなくてもBattleUI参照は設定
             var battleUI = battlePanel.GetComponent<BattleUI>();
             if (battleUI != null) bm.battleUI = battleUI;
         }
 
-        // EditorのDirtyフラグ設定
         EditorUtility.SetDirty(gm);
         EditorUtility.SetDirty(bm);
         EditorUtility.SetDirty(mm);
+        EditorUtility.SetDirty(fm);
         EditorUtility.SetDirty(fe);
 
         Debug.Log("  全参照の割り当て完了");
@@ -1172,28 +1244,28 @@ public class ProjectSetupTool : EditorWindow
     // ====================================
     // 初期デッキ設定
     // ====================================
-    private static void SetupInitialDeck(GameManager gm, Dictionary<string, KanjiCardData> cards)
+    private static void SetupInitialInventory(GameManager gm, Dictionary<string, KanjiCardData> cards)
     {
-        gm.deck.Clear();
+        gm.inventory.Clear();
 
-        // 初期デッキ: ユーザー指定の基本漢字 各2枚ずつ
+        // 初期インベントリ: 基本漢字 各2枚ずつ
         string[] basicKanjis = { "木", "日", "月", "力", "火", "田", "口", "十", "大", "土", "人", "目", "白", "公", "民" };
         
         foreach (string k in basicKanjis)
         {
-            AddCardsToDeck(gm, cards, k, 2);
+            AddCardsToInventory(gm, cards, k, 2);
         }
 
         EditorUtility.SetDirty(gm);
-        Debug.Log($"  初期デッキ設定完了: {gm.deck.Count}枚");
+        Debug.Log($"  初期インベントリ設定完了: {gm.inventory.Count}枚");
     }
 
-    private static void AddCardsToDeck(GameManager gm, Dictionary<string, KanjiCardData> cards, string kanji, int count)
+    private static void AddCardsToInventory(GameManager gm, Dictionary<string, KanjiCardData> cards, string kanji, int count)
     {
         if (!cards.ContainsKey(kanji)) return;
         for (int i = 0; i < count; i++)
         {
-            gm.deck.Add(cards[kanji]);
+            gm.inventory.Add(cards[kanji]);
         }
     }
 

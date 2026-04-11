@@ -3,6 +3,7 @@ using UnityEngine;
 
 /// <summary>
 /// ゲーム全体の状態管理（シングルトン）
+/// 2D見下ろし型フィールド探索 + 消費型インベントリ方式
 /// </summary>
 public class GameManager : MonoBehaviour
 {
@@ -14,9 +15,10 @@ public class GameManager : MonoBehaviour
     public int initialHandSize = 5;
     public int startGold = 50;
     public int fusionCost = 20;
+    public int inventoryMaxSize = 30;
 
     [Header("現在の状態")]
-    public GameState currentState = GameState.Map;
+    public GameState currentState = GameState.Field;
     public int playerHP;
     public int playerMana;
     public int playerMaxMana;
@@ -24,15 +26,15 @@ public class GameManager : MonoBehaviour
     public int playerDefenseBuff = 0;
     public int playerGold = 0;
 
-    [Header("デッキ")]
-    public List<KanjiCardData> deck = new List<KanjiCardData>();
+    [Header("インベントリ（消費型）")]
+    public List<KanjiCardData> inventory = new List<KanjiCardData>();
     public List<KanjiCardData> hand = new List<KanjiCardData>();
-    public List<KanjiCardData> discardPile = new List<KanjiCardData>();
 
     [Header("参照")]
     public KanjiFusionDatabase fusionDatabase;
     public BattleManager battleManager;
     public MapManager mapManager;
+    public FieldManager fieldManager;
     public KanjiFusionEngine fusionEngine;
 
     [Header("UI参照")]
@@ -41,6 +43,7 @@ public class GameManager : MonoBehaviour
     public GameObject fusionPanel;
     public GameObject shopPanel;
     public GameObject dojoPanel;
+    public GameObject fieldPanel;
     public FusionSelectionUI fusionSelectionUI;
 
     public void ShowFusionSelectionUI(List<int> resultIds, System.Action<int> onSelected)
@@ -87,21 +90,21 @@ public class GameManager : MonoBehaviour
         playerDefenseBuff = 0;
         playerGold = startGold;
 
-        Debug.Log($"[GameManager] ゲーム初期化完了 HP:{playerHP} マナ:{playerMana}");
+        Debug.Log($"[GameManager] ゲーム初期化完了 HP:{playerHP} マナ:{playerMana} インベントリ:{inventory.Count}枚");
 
         // 合成レシピDictionaryを初期化
         InitializeFusionRecipes();
 
-        // 初期デッキを図鑑に登録
-        if (EncyclopediaManager.Instance != null && deck != null)
+        // 初期インベントリを図鑑に登録
+        if (EncyclopediaManager.Instance != null && inventory != null)
         {
-            foreach (var card in deck)
+            foreach (var card in inventory)
             {
                 EncyclopediaManager.Instance.UnlockCard(card.cardId);
             }
         }
 
-        ChangeState(GameState.Map);
+        ChangeState(GameState.Field);
     }
 
     /// <summary>
@@ -113,7 +116,8 @@ public class GameManager : MonoBehaviour
         Debug.Log($"[GameManager] ステート変更: {newState}");
 
         // UIパネルの表示切替
-        if (mapPanel != null) mapPanel.SetActive(newState == GameState.Map);
+        if (fieldPanel != null) fieldPanel.SetActive(newState == GameState.Field);
+        if (mapPanel != null) mapPanel.SetActive(false); // マップは常に非表示
         if (battlePanel != null) battlePanel.SetActive(newState == GameState.Battle);
         if (fusionPanel != null) fusionPanel.SetActive(newState == GameState.Fusion);
         if (shopPanel != null) shopPanel.SetActive(newState == GameState.Shop);
@@ -121,8 +125,8 @@ public class GameManager : MonoBehaviour
 
         switch (newState)
         {
-            case GameState.Map:
-                if (mapManager != null) mapManager.ShowMap();
+            case GameState.Field:
+                if (fieldManager != null) fieldManager.ShowField();
                 break;
             case GameState.Battle:
                 // BattleManagerがStartBattleを呼び出す
@@ -136,48 +140,35 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
-    /// デッキからカードを引く
+    /// インベントリからランダムに手札を引く（消費はUseCard時）
     /// </summary>
-    public void DrawCards(int count)
+    public void DrawFromInventory(int count)
     {
-        for (int i = 0; i < count; i++)
-        {
-            if (deck.Count == 0)
-            {
-                // 捨て札をデッキに戻してシャッフル
-                if (discardPile.Count == 0) return;
-                deck.AddRange(discardPile);
-                discardPile.Clear();
-                ShuffleDeck();
-            }
+        hand.Clear();
 
-            if (deck.Count > 0)
-            {
-                var card = deck[0];
-                deck.RemoveAt(0);
-                hand.Add(card);
-                Debug.Log($"[GameManager] カードドロー: {card.kanji}");
-            }
-        }
-    }
+        if (inventory.Count == 0) return;
 
-    /// <summary>
-    /// デッキをシャッフル
-    /// </summary>
-    public void ShuffleDeck()
-    {
-        for (int i = deck.Count - 1; i > 0; i--)
+        // インベントリをシャッフルしてから先頭N枚を手札にコピー
+        var shuffled = new List<KanjiCardData>(inventory);
+        for (int i = shuffled.Count - 1; i > 0; i--)
         {
             int j = Random.Range(0, i + 1);
-            var temp = deck[i];
-            deck[i] = deck[j];
-            deck[j] = temp;
+            var temp = shuffled[i];
+            shuffled[i] = shuffled[j];
+            shuffled[j] = temp;
         }
-        Debug.Log("[GameManager] デッキシャッフル完了");
+
+        int drawCount = Mathf.Min(count, shuffled.Count);
+        for (int i = 0; i < drawCount; i++)
+        {
+            hand.Add(shuffled[i]);
+        }
+
+        Debug.Log($"[GameManager] 手札引き: {hand.Count}枚（インベントリ残:{inventory.Count}枚）");
     }
 
     /// <summary>
-    /// カードを使用（バトル中）
+    /// カードを使用（消費型：インベントリからも完全削除）
     /// </summary>
     public bool UseCard(KanjiCardData card)
     {
@@ -189,9 +180,32 @@ public class GameManager : MonoBehaviour
 
         playerMana -= card.cost;
         hand.Remove(card);
-        discardPile.Add(card);
+        inventory.Remove(card); // インベントリからも完全消費
 
-        Debug.Log($"[GameManager] カード使用: {card.kanji}（{card.description}）");
+        Debug.Log($"[GameManager] カード消費: {card.kanji}（残インベントリ:{inventory.Count}枚）");
+        return true;
+    }
+
+    /// <summary>
+    /// インベントリにカードを追加（上限チェック付き）
+    /// </summary>
+    public bool AddToInventory(KanjiCardData card)
+    {
+        if (card == null) return false;
+        if (inventory.Count >= inventoryMaxSize)
+        {
+            Debug.Log($"[GameManager] インベントリが満杯（{inventoryMaxSize}枚）！ 『{card.kanji}』を追加できません");
+            return false;
+        }
+        inventory.Add(card);
+        Debug.Log($"[GameManager] インベントリに『{card.kanji}』を追加（{inventory.Count}/{inventoryMaxSize}）");
+
+        // 図鑑に登録
+        if (EncyclopediaManager.Instance != null)
+        {
+            EncyclopediaManager.Instance.UnlockCard(card.cardId);
+        }
+
         return true;
     }
 
@@ -217,7 +231,7 @@ public class GameManager : MonoBehaviour
     {
         playerMana = playerMaxMana;
         playerDefenseBuff = 0;
-        DrawCards(initialHandSize - hand.Count);
+        DrawFromInventory(initialHandSize);
         Debug.Log($"[GameManager] プレイヤーターン開始 マナ:{playerMana}");
     }
 
@@ -241,8 +255,8 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        // デッキ内のカードも登録
-        foreach (var card in deck)
+        // インベントリ内のカードも登録
+        foreach (var card in inventory)
         {
             if (!allCardsDict.ContainsKey(card.cardId))
             {
@@ -361,7 +375,7 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 分解実行：合体済みカードを素材に戻す
+    /// 分解実行：合体済みカードを素材に戻す（インベントリに戻す）
     /// </summary>
     public bool DecomposeCard(KanjiCardData card)
     {
@@ -370,28 +384,40 @@ public class GameManager : MonoBehaviour
         var materialIds = FindDecomposeMaterials(card.cardId);
         if (materialIds == null || materialIds.Count == 0) return false;
 
-        // 手札から合体カードを除去
-        if (!hand.Remove(card))
-        {
-            if (!deck.Remove(card))
-            {
-                if (!discardPile.Remove(card)) return false;
-            }
-        }
+        // 手札とインベントリから合体カードを除去
+        hand.Remove(card);
+        inventory.Remove(card);
 
-        // 素材カードを手札に追加
+        // 素材カードを手札とインベントリに追加
         foreach (int matId in materialIds)
         {
             var matCard = GetCardById(matId);
             if (matCard != null)
             {
                 hand.Add(matCard);
-                Debug.Log($"[GameManager] 分解: 『{matCard.kanji}』を手札に追加");
+                AddToInventory(matCard);
+                Debug.Log($"[GameManager] 分解: 『{matCard.kanji}』をインベントリに追加");
             }
         }
 
         Debug.Log($"[GameManager] 『{card.kanji}』を分解しました");
         return true;
+    }
+
+    // ==== 後方互換用（他スクリプトからの参照用）====
+    // deck を inventory のエイリアスとして公開
+    public List<KanjiCardData> deck
+    {
+        get { return inventory; }
+        set { inventory = value; }
+    }
+
+    // discardPile は廃止。参照が残っている場合のための空リスト
+    private List<KanjiCardData> _dummyDiscard = new List<KanjiCardData>();
+    public List<KanjiCardData> discardPile
+    {
+        get { return _dummyDiscard; }
+        set { } // no-op
     }
 }
 
@@ -401,7 +427,8 @@ public class GameManager : MonoBehaviour
 public enum GameState
 {
     Title,
-    Map,
+    Field,   // 2D見下ろしフィールド探索
+    Map,     // (旧) Slay the Spire型マップ - 後方互換用に残す
     Battle,
     Fusion,
     Shop,

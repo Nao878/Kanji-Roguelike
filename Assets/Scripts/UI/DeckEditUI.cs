@@ -105,20 +105,18 @@ public class DeckEditUI : MonoBehaviour
         var gm = GameManager.Instance;
         if (gm == null) return;
 
-        // 全所持カードを表示（デッキ＋手札＋捨て札）
+        // インベントリ内の全カードを表示
         var allCards = new List<KanjiCardData>();
-        allCards.AddRange(gm.deck);
-        allCards.AddRange(gm.hand);
-        allCards.AddRange(gm.discardPile);
+        allCards.AddRange(gm.inventory);
 
         foreach (var card in allCards)
         {
             CreateCardUI(card);
         }
 
-        // デッキ枚数表示
+        // 所持枚数表示
         if (deckCountText != null)
-            deckCountText.text = $"山札: {allCards.Count}枚";
+            deckCountText.text = $"所持: {allCards.Count}/{gm.inventoryMaxSize}枚";
 
         if (titleText != null)
             titleText.text = "⛩ 道場 ⛩";
@@ -271,14 +269,8 @@ public class DeckEditUI : MonoBehaviour
 
         if (currentMode == DojoMode.Remove)
         {
-            // 追放処理
-            if (!gm.deck.Remove(selectedCard))
-            {
-                if (!gm.hand.Remove(selectedCard))
-                {
-                    gm.discardPile.Remove(selectedCard);
-                }
-            }
+            // 追放処理（インベントリから削除）
+            gm.inventory.Remove(selectedCard);
             Debug.Log($"[DeckEditUI] 『{selectedCard.kanji}』を追放！");
             if (statusText != null)
                 statusText.text = $"── 座禅 ──\n『{selectedCard.kanji}』を追放した…\n心が軽くなった。";
@@ -330,7 +322,7 @@ public class DeckEditUI : MonoBehaviour
     {
         if (GameManager.Instance != null)
         {
-            GameManager.Instance.ChangeState(GameState.Map);
+            GameManager.Instance.ChangeState(GameState.Field);
         }
     }
 

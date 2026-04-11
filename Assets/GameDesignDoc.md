@@ -1,5 +1,5 @@
 # 📜 漢字ローグライク — Game Design Document
-> Last Updated: 2026-02-28 16:05
+> Last Updated: 2026-04-11 14:30
 
 ---
 
@@ -129,9 +129,11 @@
 | Script | 役割 |
 |--------|------|
 | `BattleManager` | 戦闘ロジック（カード効果適用、敵ターン、勝敗判定、スタン管理）。シングルトン |
+| `FieldManager` | (説明なし) |
 | `GameManager` | ゲーム全体の状態管理（HP/マナ/Gold/デッキ/手札/合成辞書）。シングルトン |
 | `KanjiFusionEngine` | 合体ロジックのラッパー（FusionDatabase経由でレシピ検索） |
 | `MapManager` | Slay the Spire風ルートマップ生成/表示/ノードクリック処理。和風デザイン |
+| `TopDownPlayerController` | (説明なし) |
 | `VFXManager` | 全VFX演出管理（合体・ダメージ・Spawn）。Coroutine + AnimationCurve。シングルトン |
 
 ### Data（データ構造/ScriptableObject）
