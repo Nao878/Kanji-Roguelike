@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 59f4fbd96425aac45b626ce3eada3238, type: 3}
+  m_Name: "Enemy_\u6708\u306E\u7CBE"
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyData
+  enemyName: "\u6708\u306E\u7CBE"
+  displayKanji: "\u6708"
+  maxHP: 15
+  attackPower: 2
+  enemyType: 0
+  dropCard: {fileID: 11400000, guid: e33e286af3a759f4b82a718b5b536b1c, type: 2}

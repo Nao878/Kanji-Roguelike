@@ -23,21 +23,38 @@ public class TopDownPlayerController : MonoBehaviour
         if (fieldManager == null) return;
 
         moveTimer -= Time.deltaTime;
-        if (moveTimer > 0f) return;
 
         Vector2Int dir = Vector2Int.zero;
 
-        // WASD + 矢印キー
-        if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow))
-            dir = Vector2Int.up;
-        else if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow))
-            dir = Vector2Int.down;
-        else if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow))
-            dir = Vector2Int.left;
-        else if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow))
-            dir = Vector2Int.right;
+        // Old Input System (もし有効なら)
+        try
+        {
+            float h = Input.GetAxisRaw("Horizontal");
+            float v = Input.GetAxisRaw("Vertical");
 
-        if (dir != Vector2Int.zero)
+            if (Mathf.Abs(h) > 0.1f)
+                dir = h > 0 ? Vector2Int.right : Vector2Int.left;
+            else if (Mathf.Abs(v) > 0.1f)
+                dir = v > 0 ? Vector2Int.up : Vector2Int.down;
+        }
+        catch (System.Exception)
+        {
+            // 旧InputがDisable設定例外を投げる場合は無視
+        }
+
+#if ENABLE_INPUT_SYSTEM
+        // New Input System
+        if (dir == Vector2Int.zero && UnityEngine.InputSystem.Keyboard.current != null)
+        {
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if (kb.wKey.isPressed || kb.upArrowKey.isPressed) dir = Vector2Int.up;
+            else if (kb.sKey.isPressed || kb.downArrowKey.isPressed) dir = Vector2Int.down;
+            else if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) dir = Vector2Int.left;
+            else if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) dir = Vector2Int.right;
+        }
+#endif
+
+        if (dir != Vector2Int.zero && moveTimer <= 0f)
         {
             bool moved = fieldManager.TryMovePlayer(dir);
             if (moved)

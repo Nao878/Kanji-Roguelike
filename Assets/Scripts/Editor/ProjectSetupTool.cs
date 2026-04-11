@@ -373,10 +373,15 @@ public class ProjectSetupTool : EditorWindow
         // (名前, 漢字, HP, ATK, タイプ, ドロップ漢字キー)
         var enemyDefs = new (string name, string kanji, int hp, int atk, EnemyType type, string dropKanji)[]
         {
-            ("スライム漢字", "字", 15, 3, EnemyType.Normal, "木"),
-            ("妖怪文字", "怪", 20, 5, EnemyType.Normal, "火"),
-            ("鬼", "鬼", 30, 7, EnemyType.Elite, "力"),
-            ("龍", "龍", 50, 10, EnemyType.Boss, "大"),
+            ("木の精", "木", 15, 3, EnemyType.Normal, "木"),
+            ("火の精", "火", 18, 4, EnemyType.Normal, "火"),
+            ("土の精", "土", 20, 3, EnemyType.Normal, "土"),
+            ("日の精", "日", 15, 2, EnemyType.Normal, "日"),
+            ("月の精", "月", 15, 2, EnemyType.Normal, "月"),
+            ("水の精", "水", 15, 3, EnemyType.Normal, "水"),
+            ("人の精", "人", 12, 5, EnemyType.Normal, "人"),
+            ("エリート鬼", "力", 30, 7, EnemyType.Elite, "力"),
+            ("ボス龍", "大", 50, 10, EnemyType.Boss, "大"),
         };
 
         var enemies = new List<EnemyData>();
