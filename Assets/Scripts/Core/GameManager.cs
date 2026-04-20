@@ -36,6 +36,7 @@ public class GameManager : MonoBehaviour
     public MapManager mapManager;
     public FieldManager fieldManager;
     public KanjiFusionEngine fusionEngine;
+    public DeckManager deckManager;
 
     [Header("UI参照")]
     public GameObject mapPanel;
@@ -44,6 +45,7 @@ public class GameManager : MonoBehaviour
     public GameObject shopPanel;
     public GameObject dojoPanel;
     public GameObject fieldPanel;
+    public GameObject deckEditPanel;
     public FusionSelectionUI fusionSelectionUI;
 
     public void ShowFusionSelectionUI(List<int> resultIds, System.Action<int> onSelected)
@@ -104,6 +106,12 @@ public class GameManager : MonoBehaviour
             }
         }
 
+        // デッキを初期化（自動生成）
+        if (deckManager != null)
+        {
+            deckManager.AutoFillDeck(inventory);
+        }
+
         ChangeState(GameState.Field);
     }
 
@@ -122,6 +130,7 @@ public class GameManager : MonoBehaviour
         if (fusionPanel != null) fusionPanel.SetActive(newState == GameState.Fusion);
         if (shopPanel != null) shopPanel.SetActive(newState == GameState.Shop);
         if (dojoPanel != null) dojoPanel.SetActive(newState == GameState.Dojo);
+        if (deckEditPanel != null) deckEditPanel.SetActive(newState == GameState.DeckEdit);
 
         switch (newState)
         {
@@ -140,16 +149,18 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
-    /// インベントリからランダムに手札を引く（消費はUseCard時）
+    /// デッキからランダムに手札を引く
     /// </summary>
-    public void DrawFromInventory(int count)
+    public void DrawFromDeck(int count)
     {
         hand.Clear();
 
-        if (inventory.Count == 0) return;
+        var cardsToDrawFrom = (deckManager != null) ? deckManager.currentDeck : inventory;
 
-        // インベントリをシャッフルしてから先頭N枚を手札にコピー
-        var shuffled = new List<KanjiCardData>(inventory);
+        if (cardsToDrawFrom.Count == 0) return;
+
+        // 対象をシャッフルしてから先頭N枚を手札にコピー
+        var shuffled = new List<KanjiCardData>(cardsToDrawFrom);
         for (int i = shuffled.Count - 1; i > 0; i--)
         {
             int j = Random.Range(0, i + 1);
@@ -164,7 +175,7 @@ public class GameManager : MonoBehaviour
             hand.Add(shuffled[i]);
         }
 
-        Debug.Log($"[GameManager] 手札引き: {hand.Count}枚（インベントリ残:{inventory.Count}枚）");
+        Debug.Log($"[GameManager] 手札引き: {hand.Count}枚（デッキ/インベントリ残:{cardsToDrawFrom.Count}枚）");
     }
 
     /// <summary>
@@ -231,7 +242,7 @@ public class GameManager : MonoBehaviour
     {
         playerMana = playerMaxMana;
         playerDefenseBuff = 0;
-        DrawFromInventory(initialHandSize);
+        DrawFromDeck(initialHandSize);
         Debug.Log($"[GameManager] プレイヤーターン開始 マナ:{playerMana}");
     }
 
@@ -408,8 +419,8 @@ public class GameManager : MonoBehaviour
     // deck を inventory のエイリアスとして公開
     public List<KanjiCardData> deck
     {
-        get { return inventory; }
-        set { inventory = value; }
+        get { return (deckManager != null) ? deckManager.currentDeck : inventory; }
+        set { if (deckManager != null) deckManager.currentDeck = value; else inventory = value; }
     }
 
     // discardPile は廃止。参照が残っている場合のための空リスト
@@ -434,5 +445,6 @@ public enum GameState
     Shop,
     Event,
     Dojo,
+    DeckEdit,
     GameOver
 }

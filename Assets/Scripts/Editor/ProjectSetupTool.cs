@@ -62,13 +62,17 @@ public class ProjectSetupTool : EditorWindow
         var fusionPanel = CreateFusionPanel(canvas.transform);
         var shopPanel = CreateShopPanel(canvas.transform);
         var dojoPanel = CreateDojoPanel(canvas.transform);
-        var deckViewerPanel = CreateDeckViewerPanel(canvas.transform);
         var encyclopediaPanel = CreateEncyclopediaPanel(canvas.transform);
         var fusionSelectionPanel = CreateFusionSelectionPanel(canvas.transform);
+        var inventoryPanel = CreateInventoryPanel(canvas.transform);
 
         // フィールドパネルにボタンを接続
         var fieldDeckBtn = fieldPanel.transform.Find("FieldDeckBtn")?.GetComponent<Button>();
-        if (fieldDeckBtn != null) fieldDeckBtn.onClick.AddListener(() => deckViewerPanel.SetActive(true));
+        var inventoryManager = inventoryPanel.GetComponent<InventoryUIManager>();
+        if (fieldDeckBtn != null && inventoryManager != null) 
+        {
+            fieldDeckBtn.onClick.AddListener(() => inventoryManager.ToggleInventory());
+        }
         var fieldEncycBtn = fieldPanel.transform.Find("FieldEncycBtn")?.GetComponent<Button>();
         if (fieldEncycBtn != null) fieldEncycBtn.onClick.AddListener(() => encyclopediaPanel.SetActive(true));
 
@@ -1027,7 +1031,78 @@ public class ProjectSetupTool : EditorWindow
     }
 
     // ====================================
-    // デッキ確認パネル作成
+    // インベントリパネル作成 (NEW)
+    // ====================================
+    private static GameObject CreateInventoryPanel(Transform parent)
+    {
+        var panel = CreatePanel(parent, "InventoryPanel", new Color(0.1f, 0.1f, 0.15f, 0.95f));
+        
+        var uiManager = panel.AddComponent<InventoryUIManager>();
+        uiManager.inventoryPanel = panel;
+        
+        CreateText(panel.transform, "Title", "手荷物（リュック）", 28, 
+            new Vector2(0.1f, 0.85f), new Vector2(0.9f, 0.95f), Color.white);
+            
+        var statusText = CreateText(panel.transform, "StatusText", "手荷物: 0 / 30", 18, 
+            new Vector2(0.1f, 0.8f), new Vector2(0.9f, 0.85f), new Color(0.8f, 0.8f, 0.8f));
+        uiManager.statusText = statusText;
+
+        // 閉じるボタン
+        var closeBtn = CreateButton(panel.transform, "CloseBtn", "✖ 閉じる (Tab)", 18, 
+            new Vector2(0.8f, 0.85f), new Vector2(0.95f, 0.95f), new Color(0.6f, 0.2f, 0.2f), null);
+        closeBtn.GetComponent<Button>().onClick.AddListener(() => uiManager.CloseInventory());
+
+        var scrollView = new GameObject("InventoryScroll");
+        scrollView.transform.SetParent(panel.transform, false);
+        var svRect = scrollView.AddComponent<RectTransform>();
+        svRect.anchorMin = new Vector2(0.05f, 0.05f);
+        svRect.anchorMax = new Vector2(0.95f, 0.78f);
+        svRect.offsetMin = Vector2.zero;
+        svRect.offsetMax = Vector2.zero;
+        
+        var scrollRect = scrollView.AddComponent<ScrollRect>();
+        var viewport = new GameObject("Viewport");
+        viewport.transform.SetParent(scrollView.transform, false);
+        var vpRect = viewport.AddComponent<RectTransform>();
+        vpRect.anchorMin = Vector2.zero;
+        vpRect.anchorMax = Vector2.one;
+        vpRect.offsetMin = Vector2.zero;
+        vpRect.offsetMax = Vector2.zero;
+        var vpMask = viewport.AddComponent<Image>();
+        viewport.AddComponent<Mask>().showMaskGraphic = false;
+
+        var content = new GameObject("Content");
+        content.transform.SetParent(viewport.transform, false);
+        var contentRect = content.AddComponent<RectTransform>();
+        contentRect.anchorMin = new Vector2(0, 1);
+        contentRect.anchorMax = new Vector2(1, 1);
+        contentRect.pivot = new Vector2(0.5f, 1);
+        contentRect.sizeDelta = new Vector2(0, 600);
+        
+        scrollRect.content = contentRect;
+        scrollRect.viewport = vpRect;
+        scrollRect.horizontal = false;
+        scrollRect.vertical = true;
+        scrollRect.scrollSensitivity = 20;
+
+        var grid = content.AddComponent<GridLayoutGroup>();
+        grid.cellSize = new Vector2(80f, 100f);
+        grid.spacing = new Vector2(10f, 10f);
+        grid.padding = new RectOffset(20, 20, 20, 20);
+        grid.childAlignment = TextAnchor.UpperLeft;
+
+        uiManager.gridContent = content.transform;
+        
+        // フォント取得
+        var font = Resources.Load<TMP_FontAsset>("Fonts/ZenOldMincho-Black SDF");
+        uiManager.appFont = font;
+
+        panel.SetActive(false);
+        return panel;
+    }
+
+    // ====================================
+    // デッキ確認パネル作成 (旧方式)
     // ====================================
     private static GameObject CreateDeckViewerPanel(Transform parent)
     {

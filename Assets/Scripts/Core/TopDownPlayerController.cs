@@ -21,6 +21,9 @@ public class TopDownPlayerController : MonoBehaviour
         var gm = GameManager.Instance;
         if (gm == null || gm.currentState != GameState.Field) return;
         if (fieldManager == null) return;
+        
+        // インベントリUIが開いている間は移動しない
+        if (InventoryUIManager.Instance != null && InventoryUIManager.Instance.isInventoryOpen) return;
 
         moveTimer -= Time.deltaTime;
 

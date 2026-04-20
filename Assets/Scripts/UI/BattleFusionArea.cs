@@ -198,6 +198,16 @@ public class BattleFusionArea : MonoBehaviour
         gm.AddToInventory(resultCard);
         if (EncyclopediaManager.Instance != null) EncyclopediaManager.Instance.UnlockCard(resultId);
 
+        // 合体によるAP回復 (+1)
+        gm.playerMana = Mathf.Min(gm.playerMaxMana, gm.playerMana + 1);
+        Debug.Log($"[BattleFusionArea] 合体ボーナス：AP+1回復（現在:{gm.playerMana}）");
+
+        // 強調演出
+        if (VFXManager.Instance != null)
+        {
+            VFXManager.Instance.PlayFusionSuccessEffect(transform.position);
+        }
+
         // スロットをクリア
         slottedCards.Clear();
         UpdateUI();
@@ -206,6 +216,7 @@ public class BattleFusionArea : MonoBehaviour
         if (gm.battleManager != null && gm.battleManager.battleUI != null)
         {
             gm.battleManager.battleUI.UpdateHandUI();
+            gm.battleManager.battleUI.UpdateStatusUI();
         }
 
         Debug.Log($"[BattleFusionArea] 複合合体成功: 新たなカード『{resultCard.kanji}』を手に入れました");

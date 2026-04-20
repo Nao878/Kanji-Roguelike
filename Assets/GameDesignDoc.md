@@ -1,5 +1,5 @@
 # 📜 漢字ローグライク — Game Design Document
-> Last Updated: 2026-04-11 14:41
+> Last Updated: 2026-04-20 16:37
 
 ---
 
@@ -129,6 +129,7 @@
 | Script | 役割 |
 |--------|------|
 | `BattleManager` | 戦闘ロジック（カード効果適用、敵ターン、勝敗判定、スタン管理）。シングルトン |
+| `DeckManager` | (説明なし) |
 | `FieldManager` | (説明なし) |
 | `GameManager` | ゲーム全体の状態管理（HP/マナ/Gold/デッキ/手札/合成辞書）。シングルトン |
 | `KanjiFusionEngine` | 合体ロジックのラッパー（FusionDatabase経由でレシピ検索） |
@@ -152,10 +153,13 @@
 | `CardController` | カードのドラッグ＆ドロップ制御。敵へ攻撃、カードへ合体、ホバープレビュー実装 |
 | `CardUI` | カードUI要素保持（商店/道場用の軽量版） |
 | `DeckEditUI` | 道場UI。「追放」(10G)でカード除去、「鍛錬」(15G)でAttack/Defense+2永続強化 |
+| `DeckManagementUI` | (説明なし) |
 | `DeckViewerUI` | (説明なし) |
 | `EncyclopediaManager` | (説明なし) |
 | `FusionSelectionUI` | (説明なし) |
 | `FusionUI` | 合体所UI。2スロット選択→結果プレビュー→Gold消費で合体実行 |
+| `InventoryCardController` | (説明なし) |
+| `InventoryUIManager` | (説明なし) |
 | `KanjiEncyclopediaUI` | (説明なし) |
 | `ShopUI` | 商店UI。ランダム3枚表示→Gold消費で購入→売切表示 |
 

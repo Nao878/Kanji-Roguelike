@@ -1,0 +1,77 @@
+# Handle line endings automatically for files detected as text 
+# and leave binary files untouched.
+* text=auto
+
+# Unity files
+*.unity binary
+*.prefab binary
+*.asset binary
+*.mat binary
+*.meta binary
+*.controller binary
+*.overrideController binary
+*.physicMaterial binary
+*.physicsMaterial2D binary
+*.playable binary
+*.mask binary
+*.brush binary
+*.terrain binary
+*.guiskin binary
+*.fontsettings binary
+*.gclabel binary
+*.anim binary
+*.inputactions binary
+
+# Graphics
+*.png diff=lfs-merge-lockable
+*.jpg diff=lfs-merge-lockable
+*.jpeg diff=lfs-merge-lockable
+*.gif diff=lfs-merge-lockable
+*.psd diff=lfs-merge-lockable
+*.ai diff=lfs-merge-lockable
+*.tif diff=lfs-merge-lockable
+*.tiff diff=lfs-merge-lockable
+*.tga diff=lfs-merge-lockable
+*.bmp diff=lfs-merge-lockable
+*.ico diff=lfs-merge-lockable
+*.exr diff=lfs-merge-lockable
+*.hdr diff=lfs-merge-lockable
+
+# Audio
+*.mp3 diff=lfs-merge-lockable
+*.wav diff=lfs-merge-lockable
+*.ogg diff=lfs-merge-lockable
+
+# Video
+*.mp4 diff=lfs-merge-lockable
+*.mov diff=lfs-merge-lockable
+
+# 3D Models
+*.fbx diff=lfs-merge-lockable
+*.obj diff=lfs-merge-lockable
+*.max diff=lfs-merge-lockable
+*.blend diff=lfs-merge-lockable
+
+# Git LFS
+*.png filter=lfs diff=lfs merge=lfs -text
+*.jpg filter=lfs diff=lfs merge=lfs -text
+*.jpeg filter=lfs diff=lfs merge=lfs -text
+*.gif filter=lfs diff=lfs merge=lfs -text
+*.psd filter=lfs diff=lfs merge=lfs -text
+*.ai filter=lfs diff=lfs merge=lfs -text
+*.tif filter=lfs diff=lfs merge=lfs -text
+*.tiff filter=lfs diff=lfs merge=lfs -text
+*.tga filter=lfs diff=lfs merge=lfs -text
+*.bmp filter=lfs diff=lfs merge=lfs -text
+*.ico filter=lfs diff=lfs merge=lfs -text
+*.exr filter=lfs diff=lfs merge=lfs -text
+*.hdr filter=lfs diff=lfs merge=lfs -text
+*.mp3 filter=lfs diff=lfs merge=lfs -text
+*.wav filter=lfs diff=lfs merge=lfs -text
+*.ogg filter=lfs diff=lfs merge=lfs -text
+*.mp4 filter=lfs diff=lfs merge=lfs -text
+*.mov filter=lfs diff=lfs merge=lfs -text
+*.fbx filter=lfs diff=lfs merge=lfs -text
+*.obj filter=lfs diff=lfs merge=lfs -text
+*.max filter=lfs diff=lfs merge=lfs -text
+*.blend filter=lfs diff=lfs merge=lfs -text

@@ -222,7 +222,7 @@ public class BattleManager : MonoBehaviour
 
             case CardEffectType.Draw:
                 int drawCount = card.effectValue;
-                gm.DrawFromInventory(drawCount);
+                gm.DrawFromDeck(drawCount);
                 AddBattleLog($"『{card.DisplayName}』でカードを{drawCount}枚ドロー！");
                 break;
 

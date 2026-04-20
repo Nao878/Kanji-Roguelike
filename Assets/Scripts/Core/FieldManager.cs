@@ -20,6 +20,7 @@ public class FieldManager : MonoBehaviour
     public TextMeshProUGUI inventoryCountText;
     public TextMeshProUGUI hpText;
     public TextMeshProUGUI goldText;
+    public Button deckButton;
 
     [Header("フォント")]
     public TMP_FontAsset appFont;
@@ -54,6 +55,17 @@ public class FieldManager : MonoBehaviour
         SpawnPlayer();
         SpawnEnemies();
         UpdateStatusUI();
+    }
+
+    private void Start()
+    {
+        if (deckButton != null)
+        {
+            deckButton.onClick.AddListener(() => {
+                if (GameManager.Instance != null)
+                    GameManager.Instance.ChangeState(GameState.DeckEdit);
+            });
+        }
     }
 
     /// <summary>

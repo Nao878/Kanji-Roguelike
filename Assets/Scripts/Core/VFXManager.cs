@@ -146,6 +146,59 @@ public class VFXManager : MonoBehaviour
 
         Destroy(obj);
     }
+    
+    // ===========================================
+    // 合体成功演出 (Fusion Success - Slow-mo & Highlight)
+    // ===========================================
+
+    /// <summary>
+    /// 合体成功時の強調演出（スローモーションなど）
+    /// </summary>
+    public void PlayFusionSuccessEffect(Vector3 position)
+    {
+        StartCoroutine(CoFusionSuccessEffect(position));
+    }
+
+    private IEnumerator CoFusionSuccessEffect(Vector3 position)
+    {
+        // 1. スローモーション開始
+        float originalTimeScale = Time.timeScale;
+        Time.timeScale = 0.2f;
+
+        // 2. 特殊エフェクト生成
+        GameObject successObj = new GameObject("FusionSuccessHighlight");
+        successObj.transform.SetParent(transform.parent);
+        successObj.transform.position = position;
+        
+        var img = successObj.AddComponent<Image>();
+        img.color = new Color(1f, 1f, 0f, 0.5f); // 黄色い光
+        
+        var rect = successObj.GetComponent<RectTransform>();
+        rect.sizeDelta = new Vector2(200f, 200f);
+
+        float duration = 0.5f; // 実時間（TimeScale無関係のWaitForSecondsRealtime用）
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            float t = elapsed / duration;
+            // 拡大しながらフェードアウト
+            float scale = Mathf.Lerp(1.0f, 5.0f, t);
+            float alpha = Mathf.Lerp(0.5f, 0f, t);
+
+            successObj.transform.localScale = Vector3.one * scale;
+            img.color = new Color(img.color.r, img.color.g, img.color.b, alpha);
+
+            // TimeScaleが小さいので、RealtimeDeltaTimeを使う
+            elapsed += Time.unscaledDeltaTime;
+            yield return null;
+        }
+
+        Destroy(successObj);
+
+        // 3. スローモーション終了
+        Time.timeScale = originalTimeScale;
+    }
 
     // ===========================================
     // 生成演出 (Spawn)
