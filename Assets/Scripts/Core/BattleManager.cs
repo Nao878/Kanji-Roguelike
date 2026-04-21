@@ -11,6 +11,7 @@ public class BattleManager : MonoBehaviour
     public EnemyData currentEnemyData;
     public int enemyCurrentHP;
     public bool isPlayerTurn = true;
+    public bool isAutoEndingTurn = false; 
     public bool enemyIsStunned = false; // スタンフラグ
     public BattleState battleState = BattleState.Idle;
 
@@ -27,6 +28,7 @@ public class BattleManager : MonoBehaviour
     private string lastPlayedKanji = "";
     private CardElement lastPlayedElement = CardElement.None;
     private int elementChainCount = 0;
+    private float turnStartTime; // ターン開始時刻の記録
     
     // 熟語によるボーナスダメージ等
     private System.Collections.Generic.Dictionary<string, int> jukugoCombos = new System.Collections.Generic.Dictionary<string, int>()
@@ -72,7 +74,8 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
-        currentEnemyData = enemy;
+        currentEnemyData = Instantiate(enemy);
+
         enemyCurrentHP = enemy.maxHP;
         isPlayerTurn = true;
         enemyIsStunned = false;
@@ -89,9 +92,12 @@ public class BattleManager : MonoBehaviour
         if (GameManager.Instance != null)
         {
             GameManager.Instance.ChangeState(GameState.Battle);
+            // 戦闘開始時にまずデッキを初期化（山札準備）
+            GameManager.Instance.InitializeBattleDeck();
             GameManager.Instance.StartPlayerTurn();
         }
 
+        turnStartTime = Time.time; // ターン開始時刻を記録
         UpdateUI();
 
         // BattleUIの手札を更新
@@ -130,7 +136,7 @@ public class BattleManager : MonoBehaviour
     }
 
     /// <summary>
-    /// カード効果を適用
+    /// カード効果を適用（漢字ブレイク対応）
     /// </summary>
     private void ApplyCardEffect(KanjiCardData card)
     {
@@ -138,6 +144,31 @@ public class BattleManager : MonoBehaviour
         // modifier対応：攻撃系はattackModifier、防御系はdefenseModifierを加算
         int attackValue = card.effectValue + card.attackModifier + (card.effectType == CardEffectType.Attack ? gm.playerAttackBuff : 0);
         int defenseValue = card.effectValue + card.defenseModifier;
+
+        // 【タスク2】漢字ブレイク：相殺 (Mirror Clash)
+        bool isMirrorClash = false;
+        if (card.kanji == currentEnemyData.displayKanji)
+        {
+            isMirrorClash = true;
+            attackValue *= 3; // 確定クリティカル（特大ダメージ）
+            gm.playerMana += 1; // AP回復
+            AddBattleLog("<color=#FF0000><b>相殺（Mirror Clash）発動！特大ダメージ ＆ AP+1！</b></color>");
+            if (VFXManager.Instance != null && battleUI != null)
+            {
+                VFXManager.Instance.PlayComboEffect(battleUI.gameObject, "MIRROR CLASH!!", Color.red);
+            }
+        }
+
+        // 【タスク2】漢字ブレイク：構成数マウント (Overpower)
+        if (!isMirrorClash && card.componentCount > currentEnemyData.componentCount)
+        {
+            attackValue = Mathf.CeilToInt(attackValue * 1.5f);
+            AddBattleLog($"<color=#FFA500>構成数マウント（Overpower）！ ダメージ1.5倍！({card.componentCount} vs {currentEnemyData.componentCount})</color>");
+            if (VFXManager.Instance != null && battleUI != null)
+            {
+                VFXManager.Instance.PlayComboEffect(battleUI.gameObject, "OVERPOWER!!", new Color(1f, 0.5f, 0f));
+            }
+        }
 
         // コンボ判定：熟語
         string comboStr = lastPlayedKanji + card.kanji;
@@ -154,12 +185,12 @@ public class BattleManager : MonoBehaviour
         }
 
         // コンボ判定：属性チェイン
-        bool isElementCombo = false;
+
         if (card.element != CardElement.None && card.element == lastPlayedElement)
         {
             elementChainCount++;
-            isElementCombo = true;
-            int elementBonus = elementChainCount * 2; // チェイン毎にダメージ+2などのボーナス補正
+
+            int elementBonus = elementChainCount * 2;
             attackValue += elementBonus;
             AddBattleLog($"<color=#00FFFF>属性チェイン！({card.element}) ボーナス+{elementBonus}</color>");
             if (VFXManager.Instance != null && battleUI != null)
@@ -181,8 +212,6 @@ public class BattleManager : MonoBehaviour
             case CardEffectType.Attack:
                 enemyCurrentHP = Mathf.Max(0, enemyCurrentHP - attackValue);
                 AddBattleLog($"『{card.DisplayName}』で{attackValue}ダメージ！");
-                Debug.Log($"[BattleManager] 敵に{attackValue}ダメージ 残りHP:{enemyCurrentHP}");
-
                 if (battleUI != null && battleUI.enemyKanjiText != null && VFXManager.Instance != null)
                 {
                     VFXManager.Instance.PlayDamageEffect(battleUI.enemyKanjiText.gameObject, attackValue);
@@ -207,13 +236,11 @@ public class BattleManager : MonoBehaviour
                 break;
 
             case CardEffectType.Special:
-                // 特殊：ダメージ + 回復
-                int spAtkVal = card.effectValue + card.attackModifier + jukugoBonusDmg + (isElementCombo ? elementChainCount * 2 : 0);
+                int spAtkVal = attackValue;
                 enemyCurrentHP = Mathf.Max(0, enemyCurrentHP - spAtkVal);
                 int healAmount = Mathf.CeilToInt(spAtkVal * 0.6f);
                 gm.playerHP = Mathf.Min(gm.playerMaxHP, gm.playerHP + healAmount);
                 AddBattleLog($"『{card.DisplayName}』で{spAtkVal}ダメージ＋{healAmount}回復！");
-
                 if (battleUI != null && battleUI.enemyKanjiText != null && VFXManager.Instance != null)
                 {
                     VFXManager.Instance.PlayDamageEffect(battleUI.enemyKanjiText.gameObject, spAtkVal);
@@ -221,38 +248,26 @@ public class BattleManager : MonoBehaviour
                 break;
 
             case CardEffectType.Draw:
-                int drawCount = card.effectValue;
-                gm.DrawFromDeck(drawCount);
-                AddBattleLog($"『{card.DisplayName}』でカードを{drawCount}枚ドロー！");
+                gm.DrawFromDeck(card.effectValue);
+                AddBattleLog($"『{card.DisplayName}』でカードを{card.effectValue}枚ドロー！");
                 break;
 
             case CardEffectType.AttackAll:
-                // 全体攻撃（現状は単体と同じだが、演出や倍率を変える）
-                int allAtkVal = card.effectValue + card.attackModifier + gm.playerAttackBuff;
-                enemyCurrentHP = Mathf.Max(0, enemyCurrentHP - allAtkVal);
-                AddBattleLog($"『{card.DisplayName}』で敵全体に{allAtkVal}ダメージ！");
-                
+                enemyCurrentHP = Mathf.Max(0, enemyCurrentHP - attackValue);
+                AddBattleLog($"『{card.DisplayName}』で敵全体に{attackValue}ダメージ！");
                 if (battleUI != null && battleUI.enemyKanjiText != null && VFXManager.Instance != null)
                 {
-                    VFXManager.Instance.PlayDamageEffect(battleUI.enemyKanjiText.gameObject, allAtkVal);
+                    VFXManager.Instance.PlayDamageEffect(battleUI.enemyKanjiText.gameObject, attackValue);
                 }
                 break;
 
             case CardEffectType.Stun:
-                // スタン付与
                 enemyIsStunned = true;
                 AddBattleLog($"『{card.DisplayName}』で敵をスタンさせた！");
-                
-                // ダメージ演出（ダメージ0で揺らすだけ、あるいは専用があれば呼ぶ）
-                if (battleUI != null && battleUI.enemyKanjiText != null && VFXManager.Instance != null)
-                {
-                    // ダメージ0で呼ぶと「0」が出るので、とりあえず揺らすために呼ぶ（0が出るのは許容、または別途修正）
-                    // 今回はダメージも少し与える設定にするか、純粋なスタンならダメージなし
-                    // ユーザー要望の「困」はスタンのみ。
-                }
                 break;
         }
     }
+
 
     /// <summary>
     /// ターン終了
@@ -310,12 +325,14 @@ public class BattleManager : MonoBehaviour
         {
             // 戦闘継続 → プレイヤーターンへ
             battleState = BattleState.PlayerTurn;
+            isAutoEndingTurn = false;
             isPlayerTurn = true;
 
             if (GameManager.Instance != null)
             {
                 GameManager.Instance.StartPlayerTurn();
             }
+            turnStartTime = Time.time; // プレイヤーターン開始時刻を記録
         }
 
         UpdateUI();
@@ -331,11 +348,14 @@ public class BattleManager : MonoBehaviour
     private void ReturnToPlayerTurn()
     {
         battleState = BattleState.PlayerTurn;
+        isAutoEndingTurn = false;
         isPlayerTurn = true;
         if (GameManager.Instance != null)
         {
             GameManager.Instance.StartPlayerTurn();
         }
+        
+        turnStartTime = Time.time; // ターン開始時刻を記録
         UpdateUI();
     }
 
@@ -413,8 +433,138 @@ public class BattleManager : MonoBehaviour
     }
 
     /// <summary>
-    /// UI更新
+    /// 敵との強制合体（Enemy Fusion Break）
     /// </summary>
+    public bool TryEnemyFusion(KanjiCardData playerCard)
+    {
+        var gm = GameManager.Instance;
+        if (gm == null || currentEnemyData == null || playerCard == null) return false;
+
+        // 敵の漢字データを取得
+        var enemyCardData = gm.GetCardByKanji(currentEnemyData.displayKanji);
+        if (enemyCardData == null) return false;
+
+        // 合体レシピを検索
+        int resultId = gm.FindFusionResult(enemyCardData.cardId, playerCard.cardId);
+        if (resultId != -1)
+        {
+            var resultCard = gm.GetCardById(resultId);
+            if (resultCard != null)
+            {
+                // 【タスク2-3】敵の姿と名前を変化させる
+                AddBattleLog($"<color=#FF00FF><b>敵との強制合体！『{currentEnemyData.displayKanji}』＋『{playerCard.kanji}』＝『{resultCard.kanji}』</b></color>");
+                
+                // 敵の状態を更新
+                currentEnemyData.displayKanji = resultCard.kanji;
+                currentEnemyData.enemyName = resultCard.cardName + "化した敵";
+                currentEnemyData.componentCount = resultCard.componentCount;
+                
+                // 変化した敵はスタン ＆ AP+1
+                enemyIsStunned = true;
+                gm.playerMana += 1;
+                
+                AddBattleLog($"敵はスタン状態になり、APが1回復した！");
+
+                if (VFXManager.Instance != null && battleUI != null)
+                {
+                    VFXManager.Instance.PlayComboEffect(battleUI.gameObject, "ENEMY FUSION BREAK!!", Color.magenta);
+                }
+
+                // カードを消費（捨て札へ）
+                gm.UseCard(playerCard);
+
+                UpdateUI();
+                if (battleUI != null)
+                {
+                    battleUI.UpdateHandUI();
+                    battleUI.UpdateStatusUI();
+                }
+                
+                CheckBattleEnd();
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// オートターンエンドのチェック
+    /// </summary>
+    public void CheckAutoTurnEnd()
+    {
+        if (battleState != BattleState.PlayerTurn || isAutoEndingTurn) return;
+
+        // セーフティ：ターン開始から一定時間は判定を行わない
+        if (Time.time - turnStartTime < 1.0f) return;
+
+        var gm = GameManager.Instance;
+        
+        // フェイルセーフ：山札・捨て札・手札がすべて空の場合
+        if (gm.hand.Count == 0 && gm.drawPile.Count == 0 && gm.discardPile.Count == 0)
+        {
+            Debug.LogError("[BattleManager] 致命的なエラー：デッキが完全に空です。無限ループを防止するため強制終了します。");
+            AddBattleLog("<color=red>エラー：カードが1枚もありません。戦闘を継続できません。</color>");
+            isAutoEndingTurn = true;
+            CheckBattleEnd(); // 敗北判定等に流れる可能性を考慮
+            return;
+        }
+
+        bool anyActionPossible = false;
+        
+        // 1. 通常のカード使用チェック
+        foreach (var card in gm.hand)
+        {
+            if (card.cost <= gm.playerMana)
+            {
+                anyActionPossible = true;
+                break;
+            }
+        }
+
+        // 2. 敵との合体チェック
+        if (!anyActionPossible)
+        {
+            var enemyCardData = gm.GetCardByKanji(currentEnemyData.displayKanji);
+            if (enemyCardData != null)
+            {
+                foreach (var card in gm.hand)
+                {
+                    if (gm.FindFusionResult(enemyCardData.cardId, card.cardId) != -1)
+                    {
+                        anyActionPossible = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 3. 手札同士の合体チェック
+        if (!anyActionPossible)
+        {
+            for (int i = 0; i < gm.hand.Count; i++)
+            {
+                for (int j = i + 1; j < gm.hand.Count; j++)
+                {
+                    if (gm.FindFusionResult(gm.hand[i].cardId, gm.hand[j].cardId) != -1)
+                    {
+                        anyActionPossible = true;
+                        break;
+                    }
+                }
+                if (anyActionPossible) break;
+            }
+        }
+
+        if (!anyActionPossible)
+        {
+            isAutoEndingTurn = true;
+            AddBattleLog("<color=#AAAAAA>行動不能のため、自動的にターンを終了します...</color>");
+            Invoke(nameof(EndPlayerTurn), 1.5f);
+        }
+    }
+
+
     public void UpdateUI()
     {
         var gm = GameManager.Instance;
@@ -422,6 +572,9 @@ public class BattleManager : MonoBehaviour
 
         if (playerHPText != null) playerHPText.text = $"HP: {gm.playerHP}/{gm.playerMaxHP}";
         if (playerManaText != null) playerManaText.text = $"マナ: {gm.playerMana}/{gm.playerMaxMana}";
+
+        // オートターンエンドのチェック
+        CheckAutoTurnEnd();
 
         if (currentEnemyData != null)
         {

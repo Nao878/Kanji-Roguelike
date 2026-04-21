@@ -15,6 +15,7 @@ MonoBehaviour:
   enemyName: "\u30A8\u30EA\u30FC\u30C8\u9B3C"
   displayKanji: "\u529B"
   maxHP: 30
+  componentCount: 1
   attackPower: 7
   enemyType: 1
   dropCard: {fileID: 11400000, guid: 3182126a5903c3049836a39eed1d67f2, type: 2}

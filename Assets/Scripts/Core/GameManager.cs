@@ -28,6 +28,10 @@ public class GameManager : MonoBehaviour
 
     [Header("インベントリ（消費型）")]
     public List<KanjiCardData> inventory = new List<KanjiCardData>();
+
+    [Header("バトル用デッキ（循環システム）")]
+    public List<KanjiCardData> drawPile = new List<KanjiCardData>();
+    public List<KanjiCardData> discardPile = new List<KanjiCardData>();
     public List<KanjiCardData> hand = new List<KanjiCardData>();
 
     [Header("参照")]
@@ -151,35 +155,63 @@ public class GameManager : MonoBehaviour
     /// <summary>
     /// デッキからランダムに手札を引く
     /// </summary>
+    /// <summary>
+    /// 山札からカードを引く（循環システム対応）
+    /// </summary>
     public void DrawFromDeck(int count)
     {
-        hand.Clear();
-
-        var cardsToDrawFrom = (deckManager != null) ? deckManager.currentDeck : inventory;
-
-        if (cardsToDrawFrom.Count == 0) return;
-
-        // 対象をシャッフルしてから先頭N枚を手札にコピー
-        var shuffled = new List<KanjiCardData>(cardsToDrawFrom);
-        for (int i = shuffled.Count - 1; i > 0; i--)
+        int drawn = 0;
+        for (int i = 0; i < count; i++)
         {
-            int j = Random.Range(0, i + 1);
-            var temp = shuffled[i];
-            shuffled[i] = shuffled[j];
-            shuffled[j] = temp;
+            if (drawPile.Count == 0)
+            {
+                if (discardPile.Count == 0)
+                {
+                    Debug.Log("[GameManager] 引けるカードがありません");
+                    break;
+                }
+                ShuffleDiscardIntoDrawPile();
+            }
+
+            if (drawPile.Count > 0)
+            {
+                var card = drawPile[0];
+                drawPile.RemoveAt(0);
+                hand.Add(card);
+                drawn++;
+            }
         }
 
-        int drawCount = Mathf.Min(count, shuffled.Count);
-        for (int i = 0; i < drawCount; i++)
-        {
-            hand.Add(shuffled[i]);
-        }
-
-        Debug.Log($"[GameManager] 手札引き: {hand.Count}枚（デッキ/インベントリ残:{cardsToDrawFrom.Count}枚）");
+        Debug.Log($"[GameManager] 手札引き: {drawn}枚（山札残:{drawPile.Count}枚 捨て札:{discardPile.Count}枚）");
     }
 
     /// <summary>
+    /// 捨て札をシャッフルして山札に戻す
+    /// </summary>
+    public void ShuffleDiscardIntoDrawPile()
+    {
+        if (discardPile.Count == 0) return;
+
+        drawPile.AddRange(discardPile);
+        discardPile.Clear();
+
+        // フィッシャー–イェーツのシャッフル
+        for (int i = drawPile.Count - 1; i > 0; i--)
+        {
+            int j = Random.Range(0, i + 1);
+            var temp = drawPile[i];
+            drawPile[i] = drawPile[j];
+            drawPile[j] = temp;
+        }
+        Debug.Log("[GameManager] 捨て札をシャッフルして山札に戻しました");
+    }
+
+
+    /// <summary>
     /// カードを使用（消費型：インベントリからも完全削除）
+    /// </summary>
+    /// <summary>
+    /// カードを使用（循環システム：捨て札へ移動）
     /// </summary>
     public bool UseCard(KanjiCardData card)
     {
@@ -191,11 +223,12 @@ public class GameManager : MonoBehaviour
 
         playerMana -= card.cost;
         hand.Remove(card);
-        inventory.Remove(card); // インベントリからも完全消費
+        discardPile.Add(card); // 捨て札へ
 
-        Debug.Log($"[GameManager] カード消費: {card.kanji}（残インベントリ:{inventory.Count}枚）");
+        Debug.Log($"[GameManager] カード使用: {card.kanji}（捨て札へ移動、残マナ:{playerMana}）");
         return true;
     }
+
 
     /// <summary>
     /// インベントリにカードを追加（上限チェック付き）
@@ -238,17 +271,48 @@ public class GameManager : MonoBehaviour
     /// <summary>
     /// ターン開始時のリセット
     /// </summary>
+    /// <summary>
+    /// ターン開始時のリセット
+    /// </summary>
     public void StartPlayerTurn()
     {
-        playerMana = playerMaxMana;
+        // AP制限の撤廃：最大値に制限せず加算していく
+        playerMana += playerMaxMana; 
         playerDefenseBuff = 0;
+        
+        // 手札補充
         DrawFromDeck(initialHandSize);
+        
         Debug.Log($"[GameManager] プレイヤーターン開始 マナ:{playerMana}");
     }
+
 
     /// <summary>
     /// 合成レシピDictionaryを初期化
     /// </summary>
+    /// <summary>
+    /// 戦闘開始時のデッキ準備
+    /// </summary>
+    public void InitializeBattleDeck()
+    {
+        drawPile.Clear();
+        discardPile.Clear();
+        hand.Clear();
+
+        var sourceCards = (deckManager != null) ? deckManager.currentDeck : inventory;
+        drawPile.AddRange(sourceCards);
+
+        // 初期シャッフル
+        for (int i = drawPile.Count - 1; i > 0; i--)
+        {
+            int j = Random.Range(0, i + 1);
+            var temp = drawPile[i];
+            drawPile[i] = drawPile[j];
+            drawPile[j] = temp;
+        }
+        Debug.Log($"[GameManager] バトル用デッキ準備完了: {drawPile.Count}枚");
+    }
+
     public void InitializeFusionRecipes()
     {
         fusionRecipeDict.Clear();
@@ -376,6 +440,18 @@ public class GameManager : MonoBehaviour
     /// <summary>
     /// カードIDからカードデータを取得
     /// </summary>
+    /// <summary>
+    /// 漢字からカードデータを取得
+    /// </summary>
+    public KanjiCardData GetCardByKanji(string kanji)
+    {
+        foreach (var card in allCardsDict.Values)
+        {
+            if (card.kanji == kanji) return card;
+        }
+        return null;
+    }
+
     public KanjiCardData GetCardById(int cardId)
     {
         if (allCardsDict.TryGetValue(cardId, out KanjiCardData card))
@@ -424,12 +500,7 @@ public class GameManager : MonoBehaviour
     }
 
     // discardPile は廃止。参照が残っている場合のための空リスト
-    private List<KanjiCardData> _dummyDiscard = new List<KanjiCardData>();
-    public List<KanjiCardData> discardPile
-    {
-        get { return _dummyDiscard; }
-        set { } // no-op
-    }
+
 }
 
 /// <summary>

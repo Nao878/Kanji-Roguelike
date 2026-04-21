@@ -182,11 +182,24 @@ public class CardController : MonoBehaviour,
     /// <summary>
     /// 敵にドロップ → カード効果発動
     /// </summary>
+    /// <summary>
+    /// 敵にドロップ → 合成チェック または カード効果発動
+    /// </summary>
     private bool HandleDropOnEnemy()
     {
         var gm = GameManager.Instance;
         if (gm == null || cardData == null) return false;
 
+        // 【タスク2-3】敵との強制合体チェック
+        if (gm.battleManager.TryEnemyFusion(cardData))
+        {
+            // 合体成功（カードはTryEnemyFusion内で消費済み）
+            onHandChanged?.Invoke();
+            Destroy(gameObject);
+            return true;
+        }
+
+        // 通常のカード使用
         if (gm.playerMana < cardData.cost)
         {
             Debug.Log($"[CardController] マナ不足！ 必要:{cardData.cost} 現在:{gm.playerMana}");
@@ -205,6 +218,7 @@ public class CardController : MonoBehaviour,
         Destroy(gameObject);
         return true;
     }
+
 
     /// <summary>
     /// 別のカードにドロップ → 合成チェック

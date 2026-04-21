@@ -34,6 +34,9 @@ public class KanjiCardData : ScriptableObject
     [Tooltip("カードの属性")]
     public CardElement element = CardElement.None;
 
+
+    [Tooltip("構成数（合体元の数。例: 木=1, 林=2, 森=3）")]
+    public int componentCount = 1;
     [Header("合成情報")]
     [Tooltip("合成で生まれたカードかどうか")]
     public bool isFusionResult = false;

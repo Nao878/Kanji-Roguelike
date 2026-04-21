@@ -20,6 +20,7 @@ MonoBehaviour:
   effectValue: 3
   effectType: 4
   element: 2
+  componentCount: 1
   isFusionResult: 1
   attackModifier: 0
   defenseModifier: 0

@@ -17,6 +17,9 @@ public class EnemyData : ScriptableObject
     [Tooltip("最大HP")]
     public int maxHP = 20;
 
+
+    [Tooltip("構成数（合体元の数。例: 木=1, 林=2, 森=3）")]
+    public int componentCount = 1;
     [Tooltip("攻撃力")]
     public int attackPower = 5;
 

@@ -1,5 +1,5 @@
 # 📜 漢字ローグライク — Game Design Document
-> Last Updated: 2026-04-20 16:37
+> Last Updated: 2026-04-21 11:25
 
 ---
 
