@@ -230,12 +230,16 @@ public class BattleManager : MonoBehaviour
             case CardEffectType.Defense:
                 gm.playerDefenseBuff += defenseValue;
                 AddBattleLog($"『{card.DisplayName}』で防御力+{defenseValue}！");
+                if (VFXManager.Instance != null && battleUI != null && battleUI.playerHPText != null)
+                    VFXManager.Instance.PlayDefenseVFX(battleUI.playerHPText.transform.position);
                 break;
 
             case CardEffectType.Heal:
                 int healVal = card.effectValue + card.defenseModifier;
                 gm.playerHP = Mathf.Min(gm.playerMaxHP, gm.playerHP + healVal);
                 AddBattleLog($"『{card.DisplayName}』でHP{healVal}回復！");
+                if (VFXManager.Instance != null && battleUI != null && battleUI.playerHPText != null)
+                    VFXManager.Instance.PlayHealVFX(battleUI.playerHPText.transform.position);
                 break;
 
             case CardEffectType.Buff:
@@ -278,6 +282,8 @@ public class BattleManager : MonoBehaviour
             case CardEffectType.Stun:
                 enemyIsStunned = true;
                 AddBattleLog($"『{card.DisplayName}』で敵をスタンさせた！");
+                if (VFXManager.Instance != null && battleUI != null && battleUI.enemyKanjiText != null)
+                    VFXManager.Instance.PlayStunVFX(battleUI.enemyKanjiText.transform.position);
                 break;
         }
     }

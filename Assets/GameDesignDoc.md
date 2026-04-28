@@ -154,6 +154,9 @@
 | 特大ダメージ | 相殺・マウント発動時 | `CFXR3 Fire Explosion B` | 敵座標に炎爆発 + 強カメラシェイク |
 | 合体成功 | 手札合体成功時 | `CFXR4 Firework 1 Cyan-Purple (HDR)` | カード合体中心座標に花火エフェクト |
 | 敵討伐 | 敵HP0時 | `CFXR2 WW Enemy Explosion` | 敵座標に爆発エフェクト → 敵消滅 |
+| 回復 | Heal発動時 | `CFXR3 Magic Aura A (Runic)` | プレイヤーHP座標に魔法陣エフェクト |
+| 防御 | Defense発動時 | `CFXR3 Shield Leaves A (Lit)` | プレイヤーHP座標に葉の盾エフェクト |
+| スタン | Stun発動時 | `CFXR3 Hit Electric C (Air)` | 敵座標に電撃エフェクト |
 
 **描画設定**:
 - Canvas RenderMode: `Screen Space - Camera`（Main Camera割り当て、planeDistance=10）

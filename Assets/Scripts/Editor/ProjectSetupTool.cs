@@ -549,6 +549,42 @@ public class ProjectSetupTool : EditorWindow
         {
             Debug.LogWarning("  CFXR: CFXR2 WW Enemy Explosion.prefab が見つかりません");
         }
+
+        // 回復: CFXR3 Magic Aura A (Runic) — 魔法陣エフェクト
+        var heal = AssetDatabase.LoadAssetAtPath<GameObject>($"{cfxrBasePath}/Magic Misc/CFXR3 Magic Aura A (Runic).prefab");
+        if (heal != null)
+        {
+            vfx.healEffect = heal;
+            Debug.Log($"  CFXR割当: HealEffect = {heal.name}");
+        }
+        else
+        {
+            Debug.LogWarning("  CFXR: CFXR3 Magic Aura A (Runic).prefab が見つかりません");
+        }
+
+        // 防御: CFXR3 Shield Leaves A (Lit) — 葉の盾エフェクト
+        var defense = AssetDatabase.LoadAssetAtPath<GameObject>($"{cfxrBasePath}/Nature/CFXR3 Shield Leaves A (Lit).prefab");
+        if (defense != null)
+        {
+            vfx.defenseEffect = defense;
+            Debug.Log($"  CFXR割当: DefenseEffect = {defense.name}");
+        }
+        else
+        {
+            Debug.LogWarning("  CFXR: CFXR3 Shield Leaves A (Lit).prefab が見つかりません");
+        }
+
+        // スタン: CFXR3 Hit Electric C (Air) — 電撃エフェクト
+        var stun = AssetDatabase.LoadAssetAtPath<GameObject>($"{cfxrBasePath}/Electric/CFXR3 Hit Electric C (Air).prefab");
+        if (stun != null)
+        {
+            vfx.stunEffect = stun;
+            Debug.Log($"  CFXR割当: StunEffect = {stun.name}");
+        }
+        else
+        {
+            Debug.LogWarning("  CFXR: CFXR3 Hit Electric C (Air).prefab が見つかりません");
+        }
     }
 
     // ====================================
