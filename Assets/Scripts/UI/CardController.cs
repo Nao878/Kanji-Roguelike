@@ -274,6 +274,9 @@ public class CardController : MonoBehaviour,
             // 次のカードの出現演出を予約
             VFXManager.Instance.RegisterSpawnEffect(resultCard);
 
+            // 合体位置を事前にキャプチャ（ラムダ実行時にGameObjectが破棄済みのため）
+            Vector3 fusionCenterPos = (transform.position + targetCard.transform.position) * 0.5f;
+
             // 合体演出再生
             VFXManager.Instance.PlayFusionSequence(this, targetCard, () =>
             {
@@ -296,6 +299,8 @@ public class CardController : MonoBehaviour,
                 if (VFXManager.Instance != null)
                 {
                     VFXManager.Instance.PlayOneMoreEffect();
+                    // CFXR合体成功パーティクルエフェクト
+                    VFXManager.Instance.PlayFusionCFXR(fusionCenterPos);
                 }
 
                 // 古いオブジェクト削除

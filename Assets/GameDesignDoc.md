@@ -1,5 +1,5 @@
 # 📜 漢字ローグライク — Game Design Document
-> Last Updated: 2026-04-28 13:26
+> Last Updated: 2026-04-28 14:54
 
 ---
 
@@ -145,6 +145,29 @@
 | ダメージ | 攻撃ヒット時 | 敵画像シェイク + 赤フラッシュ + ダメージ数値ポップ |
 | Spawn | 新カード出現時 | AnimationCurve適用のボヨヨン出現 |
 | ブレイク | 漢字ブレイク発動時 | コンボテキスト表示（MIRROR CLASH / OVERPOWER / ENEMY FUSION BREAK） |
+| 合体不可 | 合体先なし時 | 赤テキスト「合体不可」がボヨヨン出現→上昇→フェードアウト（1.0秒） |
+
+### CFXRパーティクルエフェクト（Cartoon FX Remaster Free）
+| 演出 | タイミング | 使用Prefab | 詳細 |
+|------|-----------|------------|------|
+| 通常攻撃ヒット | Attack/Special/AttackAll発動時 | `CFXR Hit A (Red)` | 敵座標に赤い衝撃波 |
+| 特大ダメージ | 相殺・マウント発動時 | `CFXR3 Fire Explosion B` | 敵座標に炎爆発 + 強カメラシェイク |
+| 合体成功 | 手札合体成功時 | `CFXR4 Firework 1 Cyan-Purple (HDR)` | カード合体中心座標に花火エフェクト |
+| 敵討伐 | 敵HP0時 | `CFXR2 WW Enemy Explosion` | 敵座標に爆発エフェクト → 敵消滅 |
+
+**描画設定**:
+- Canvas RenderMode: `Screen Space - Camera`（Main Camera割り当て、planeDistance=10）
+- パーティクルZ座標: カメラから距離5の位置（UIの手前に描画）
+- パーティクルScale: `Vector3.one`にリセット
+- 自動破棄: CFXRの`ClearBehavior.Destroy` + フォールバック5秒後Destroy
+
+### カード選択UIフィードバック
+- **トリガー**: プレイヤーが手札のカードを左クリック（タップ）した時
+- **演出内容**:
+  1. **背景色変更**: カード背景が黄色（`#FFD933`）に変わる
+  2. **Outline発光**: Unity UIの`Outline`コンポーネントが追加され、黄金色（`RGBA(1, 0.9, 0.3, 0.9)`）の発光枠が表示される（距離: 3px）
+  3. **浮き上がり**: カードが20px上方向に移動し、選択中であることを視覚的に強調
+- **解除条件**: 同じカードを再クリック / 別カードをクリック / ドラッグ開始 / UI更新時
 
 ---
 
@@ -191,7 +214,9 @@
 ### Editor（開発ツール）
 | Script | 役割 |
 |--------|------|
+| `AutoBattleTest` | (説明なし) |
 | `GameDesignDocGenerator` | 本ドキュメントを自動生成するエディタツール |
+| `PlayModeCardTest` | (説明なし) |
 | `ProjectSetupTool` | ワンクリックでシーン全体を構築（カード/レシピ/敵/UI/VFX生成） |
 
 ### シングルトン管理

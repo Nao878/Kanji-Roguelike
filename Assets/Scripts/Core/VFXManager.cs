@@ -27,6 +27,19 @@ public class VFXManager : MonoBehaviour
     [Header("References")]
     public TMP_FontAsset appFont; // ダメージテキスト用フォント
 
+    [Header("CFXR Battle Effects")]
+    [Tooltip("通常攻撃のヒット用エフェクト")]
+    public GameObject attackHitEffect;
+    [Tooltip("相殺やマウント等の特大ダメージ用エフェクト")]
+    public GameObject criticalHitEffect;
+    [Tooltip("合体成功時用エフェクト")]
+    public GameObject fusionCFXREffect;
+    [Tooltip("敵討伐時用エフェクト")]
+    public GameObject enemyDeathEffect;
+
+    // パーティクル生成用カメラ参照
+    private Camera mainCamera;
+
     private void Awake()
     {
         if (Instance == null)
@@ -37,6 +50,8 @@ public class VFXManager : MonoBehaviour
         {
             Destroy(gameObject);
         }
+
+        mainCamera = Camera.main;
     }
 
     // ===========================================
@@ -686,5 +701,134 @@ public class VFXManager : MonoBehaviour
         }
 
         Destroy(obj);
+    }
+
+    // ===========================================
+    // CFXR パーティクルエフェクト (Cartoon FX Remaster)
+    // ===========================================
+
+    /// <summary>
+    /// UI座標（Screen Space - Camera モード）からパーティクル生成用の3Dワールド座標を計算
+    /// パーティクルはCanvas（planeDistance=10）よりカメラ寄り（Z=5）に配置
+    /// </summary>
+    private Vector3 GetParticleWorldPosition(Vector3 uiWorldPosition)
+    {
+        if (mainCamera == null) mainCamera = Camera.main;
+        if (mainCamera == null) return uiWorldPosition;
+
+        // Screen Space - Camera モード: UI要素のワールド座標をスクリーン座標に変換
+        Vector3 screenPos = mainCamera.WorldToScreenPoint(uiWorldPosition);
+        // パーティクルをCanvasより手前（カメラ寄り）に配置
+        // Canvas planeDistance=10 なので、カメラからの距離5にパーティクルを配置
+        screenPos.z = 5f;
+        return mainCamera.ScreenToWorldPoint(screenPos);
+    }
+
+    /// <summary>
+    /// CFXRパーティクルを指定位置に生成し、自動破棄設定を行う
+    /// </summary>
+    private GameObject SpawnCFXREffect(GameObject prefab, Vector3 uiWorldPosition)
+    {
+        if (prefab == null)
+        {
+            Debug.LogWarning("[VFXManager] CFXR prefab is null — エフェクトをスキップ");
+            return null;
+        }
+
+        Vector3 spawnPos = GetParticleWorldPosition(uiWorldPosition);
+        GameObject instance = Instantiate(prefab, spawnPos, Quaternion.identity);
+
+        // スケールをリセット（親オブジェクトのスケーリングに影響されないように）
+        instance.transform.localScale = Vector3.one;
+
+        Debug.Log($"[VFXManager] CFXR Effect Spawned: {prefab.name} at world={spawnPos} (ui={uiWorldPosition})");
+
+        // フォールバック自動破棄（CFXRのClearBehavior.Destroyが効かない場合の保険）
+        Destroy(instance, 5f);
+
+        return instance;
+    }
+
+    /// <summary>
+    /// 通常攻撃ヒット時のCFXRエフェクト再生
+    /// </summary>
+    public void PlayAttackHitVFX(Vector3 uiWorldPosition)
+    {
+        SpawnCFXREffect(attackHitEffect, uiWorldPosition);
+    }
+
+    /// <summary>
+    /// 特大ダメージ（相殺・マウント等）時のCFXRエフェクト再生 + 強カメラシェイク
+    /// </summary>
+    public void PlayCriticalHitVFX(Vector3 uiWorldPosition)
+    {
+        SpawnCFXREffect(criticalHitEffect, uiWorldPosition);
+        PlayCameraShake(20f, 0.4f);
+    }
+
+    /// <summary>
+    /// 合体成功時のCFXRパーティクルエフェクト再生
+    /// </summary>
+    public void PlayFusionCFXR(Vector3 uiWorldPosition)
+    {
+        SpawnCFXREffect(fusionCFXREffect, uiWorldPosition);
+    }
+
+    /// <summary>
+    /// 敵討伐時のCFXRエフェクト再生（再生後コールバック付き）
+    /// </summary>
+    public void PlayEnemyDeathVFX(Vector3 uiWorldPosition, System.Action onComplete = null)
+    {
+        var instance = SpawnCFXREffect(enemyDeathEffect, uiWorldPosition);
+        if (instance != null)
+        {
+            StartCoroutine(CoWaitAndCallback(1.2f, onComplete));
+        }
+        else
+        {
+            onComplete?.Invoke();
+        }
+    }
+
+    private IEnumerator CoWaitAndCallback(float delay, System.Action callback)
+    {
+        yield return new WaitForSeconds(delay);
+        callback?.Invoke();
+    }
+
+    // ===========================================
+    // カメラシェイク強化 (Canvas全体を揺らす)
+    // ===========================================
+
+    /// <summary>
+    /// Canvas全体を揺らすカメラシェイク演出
+    /// </summary>
+    public void PlayCameraShake(float magnitude, float duration)
+    {
+        var canvas = FindFirstObjectByType<Canvas>();
+        if (canvas != null)
+        {
+            StartCoroutine(CoCameraShake(canvas.GetComponent<RectTransform>(), magnitude, duration));
+        }
+    }
+
+    private IEnumerator CoCameraShake(RectTransform canvasRect, float magnitude, float duration)
+    {
+        if (canvasRect == null) yield break;
+
+        Vector2 originalPos = canvasRect.anchoredPosition;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            float decreaseFactor = 1f - (elapsed / duration); // 徐々に弱まる
+            Vector2 offset = Random.insideUnitCircle * magnitude * decreaseFactor;
+            canvasRect.anchoredPosition = originalPos + offset;
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        canvasRect.anchoredPosition = originalPos;
     }
 }

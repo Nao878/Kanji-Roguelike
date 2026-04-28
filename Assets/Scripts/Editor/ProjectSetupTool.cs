@@ -489,7 +489,66 @@ public class ProjectSetupTool : EditorWindow
         curve.AddKey(new Keyframe(1f, 1f, -1f, 0f));    // 終点 (少し戻る)
         vfx.spawnCurve = curve;
 
+        // CFXR Battle Effects の自動割り当て
+        AssignCFXREffects(vfx);
+
         return go;
+    }
+
+    /// <summary>
+    /// CFXRプレハブをVFXManagerに自動割り当て
+    /// </summary>
+    private static void AssignCFXREffects(VFXManager vfx)
+    {
+        string cfxrBasePath = "Assets/JMO Assets/Cartoon FX Remaster/CFXR Prefabs";
+
+        // 通常攻撃ヒット: CFXR Hit A (Red) — 赤い衝撃波
+        var attackHit = AssetDatabase.LoadAssetAtPath<GameObject>($"{cfxrBasePath}/Impacts/CFXR Hit A (Red).prefab");
+        if (attackHit != null)
+        {
+            vfx.attackHitEffect = attackHit;
+            Debug.Log($"  CFXR割当: AttackHitEffect = {attackHit.name}");
+        }
+        else
+        {
+            Debug.LogWarning("  CFXR: CFXR Hit A (Red).prefab が見つかりません");
+        }
+
+        // 特大ダメージ: CFXR3 Fire Explosion B — 派手な炎爆発
+        var criticalHit = AssetDatabase.LoadAssetAtPath<GameObject>($"{cfxrBasePath}/Explosions/CFXR3 Fire Explosion B.prefab");
+        if (criticalHit != null)
+        {
+            vfx.criticalHitEffect = criticalHit;
+            Debug.Log($"  CFXR割当: CriticalHitEffect = {criticalHit.name}");
+        }
+        else
+        {
+            Debug.LogWarning("  CFXR: CFXR3 Fire Explosion B.prefab が見つかりません");
+        }
+
+        // 合体成功: CFXR4 Firework 1 Cyan-Purple (HDR) — 花火エフェクト
+        var fusion = AssetDatabase.LoadAssetAtPath<GameObject>($"{cfxrBasePath}/Explosions/CFXR4 Firework 1 Cyan-Purple (HDR).prefab");
+        if (fusion != null)
+        {
+            vfx.fusionCFXREffect = fusion;
+            Debug.Log($"  CFXR割当: FusionCFXREffect = {fusion.name}");
+        }
+        else
+        {
+            Debug.LogWarning("  CFXR: CFXR4 Firework 1 Cyan-Purple (HDR).prefab が見つかりません");
+        }
+
+        // 敵討伐: CFXR2 WW Enemy Explosion — 敵消滅爆発
+        var enemyDeath = AssetDatabase.LoadAssetAtPath<GameObject>($"{cfxrBasePath}/Eerie/CFXR2 WW Enemy Explosion.prefab");
+        if (enemyDeath != null)
+        {
+            vfx.enemyDeathEffect = enemyDeath;
+            Debug.Log($"  CFXR割当: EnemyDeathEffect = {enemyDeath.name}");
+        }
+        else
+        {
+            Debug.LogWarning("  CFXR: CFXR2 WW Enemy Explosion.prefab が見つかりません");
+        }
     }
 
     // ====================================
@@ -507,7 +566,10 @@ public class ProjectSetupTool : EditorWindow
 
         var canvasGo = new GameObject("MainCanvas");
         var canvas = canvasGo.AddComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        // Screen Space - Camera: 3Dパーティクル（CFXR）をUI手前に表示するため
+        canvas.renderMode = RenderMode.ScreenSpaceCamera;
+        canvas.worldCamera = Camera.main;
+        canvas.planeDistance = 10f; // UIはカメラから10離れた位置に配置
         canvas.sortingOrder = 0;
 
         // 背景（墨色パネル）
@@ -520,9 +582,6 @@ public class ProjectSetupTool : EditorWindow
         bgRect.offsetMax = Vector2.zero;
         var bgImage = bgPanel.AddComponent<Image>();
         bgImage.color = new Color(0.1f, 0.1f, 0.1f, 1f); // #1A1A1A
-        // 背景は最背面（Hierarchyの一番上）にあるべきだが、
-        // CreateMapPanelなどが後から追加されるので、canvasGoの子要素の最初に追加すればOK。
-        // 今はまだ誰も子供がいないので、最初に追加される。
 
 
         var scaler = canvasGo.AddComponent<CanvasScaler>();

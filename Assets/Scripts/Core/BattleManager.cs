@@ -156,6 +156,9 @@ public class BattleManager : MonoBehaviour
             if (VFXManager.Instance != null && battleUI != null)
             {
                 VFXManager.Instance.PlayComboEffect(battleUI.gameObject, "MIRROR CLASH!!", Color.red);
+                // CFXR特大ダメージエフェクト + 強カメラシェイク
+                if (battleUI.enemyKanjiText != null)
+                    VFXManager.Instance.PlayCriticalHitVFX(battleUI.enemyKanjiText.transform.position);
             }
         }
 
@@ -167,6 +170,9 @@ public class BattleManager : MonoBehaviour
             if (VFXManager.Instance != null && battleUI != null)
             {
                 VFXManager.Instance.PlayComboEffect(battleUI.gameObject, "OVERPOWER!!", new Color(1f, 0.5f, 0f));
+                // CFXR特大ダメージエフェクト + 強カメラシェイク
+                if (battleUI.enemyKanjiText != null)
+                    VFXManager.Instance.PlayCriticalHitVFX(battleUI.enemyKanjiText.transform.position);
             }
         }
 
@@ -215,6 +221,9 @@ public class BattleManager : MonoBehaviour
                 if (battleUI != null && battleUI.enemyKanjiText != null && VFXManager.Instance != null)
                 {
                     VFXManager.Instance.PlayDamageEffect(battleUI.enemyKanjiText.gameObject, attackValue);
+                    // CFXR通常攻撃ヒットエフェクト（ブレイク発動時以外）
+                    if (!isMirrorClash && card.componentCount <= (currentEnemyData != null ? currentEnemyData.componentCount : 999))
+                        VFXManager.Instance.PlayAttackHitVFX(battleUI.enemyKanjiText.transform.position);
                 }
                 break;
 
@@ -244,6 +253,9 @@ public class BattleManager : MonoBehaviour
                 if (battleUI != null && battleUI.enemyKanjiText != null && VFXManager.Instance != null)
                 {
                     VFXManager.Instance.PlayDamageEffect(battleUI.enemyKanjiText.gameObject, spAtkVal);
+                    // CFXR通常攻撃ヒットエフェクト
+                    if (!isMirrorClash)
+                        VFXManager.Instance.PlayAttackHitVFX(battleUI.enemyKanjiText.transform.position);
                 }
                 break;
 
@@ -258,6 +270,8 @@ public class BattleManager : MonoBehaviour
                 if (battleUI != null && battleUI.enemyKanjiText != null && VFXManager.Instance != null)
                 {
                     VFXManager.Instance.PlayDamageEffect(battleUI.enemyKanjiText.gameObject, attackValue);
+                    // CFXR通常攻撃ヒットエフェクト
+                    VFXManager.Instance.PlayAttackHitVFX(battleUI.enemyKanjiText.transform.position);
                 }
                 break;
 
@@ -389,8 +403,20 @@ public class BattleManager : MonoBehaviour
             AddBattleLog($"勝利！ {goldReward}G獲得！");
             Debug.Log($"[BattleManager] 戦闘勝利！ {goldReward}G獲得");
 
-            // 少し待ってからフィールドに戻る
-            Invoke(nameof(ReturnToField), 1.5f);
+            // CFXR敵討伐エフェクト再生後にフィールドへ戻る
+            if (VFXManager.Instance != null && battleUI != null && battleUI.enemyKanjiText != null)
+            {
+                VFXManager.Instance.PlayEnemyDeathVFX(battleUI.enemyKanjiText.transform.position, () =>
+                {
+                    // 敵表示を非表示にしてからフィールドに戻る
+                    if (battleUI.enemyArea != null) battleUI.enemyArea.SetActive(false);
+                    ReturnToField();
+                });
+            }
+            else
+            {
+                Invoke(nameof(ReturnToField), 1.5f);
+            }
         }
         else if (GameManager.Instance != null && GameManager.Instance.playerHP <= 0)
         {
