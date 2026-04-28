@@ -1,5 +1,5 @@
 # 📜 漢字ローグライク — Game Design Document
-> Last Updated: 2026-04-28 14:54
+> Last Updated: 2026-04-28 16:12
 
 ---
 
@@ -47,6 +47,13 @@
 | `Event` | イベント | ランダムイベント |
 | `GameOver` | ゲームオーバー | リトライ選択 |
 
+### ゲームオーバー (敗北時の処理)
+- **敗北条件**: プレイヤーのHPが0以下になる。
+- **ゲームオーバー画面 (`GameOverPanel`)**:
+  - `GameManager` が `GameState.GameOver` ステートへ移行すると表示される。
+  - **ビジュアル**: 画面全体を覆う半透明の黒背景に、和風の装飾線と赤色の「敗北」という巨大なテキストが表示される。
+  - **再スタート**: パネル内に配置された「最初から」ボタンを押すことで、シーン全体がリロードされ（`Time.timeScale = 1f` にリセット）、HPや所持金・デッキなどが初期化された状態でゲームを最初から再開できる。
+
 ### マップ構造（Slay the Spire型）
 - **レイヤー数**: 7層（ボトム→トップ）
 - **各層ノード数**: 2〜3ノード（ランダム分岐）
@@ -74,6 +81,9 @@
 - **手札上限**: 5枚
 - **初期Gold**: 50G
 - **合体コスト**: 20G（道場での合体時）
+
+### 敵UI初期化仕様 (バグ修正対応済)
+連続戦闘時に敵の姿が透明になるバグを防ぐため、`BattleManager.StartBattle` の際に、敵UI（`enemyArea`）のアクティブ状態、`Image`および`TextMeshProUGUI`のアルファ値（不透明度）、`CanvasGroup`の設定、`BoxCollider2D`などが**毎回必ず初期値にリセット**されるよう実装されています。
 
 ### AP（行動力）とターン進行
 - **AP制限の撤廃**: 最大値の制限なく、合体やブレイクでAPを無限に蓄積可能。毎ターン開始時に基本AP(3)が加算される。
@@ -145,32 +155,6 @@
 | ダメージ | 攻撃ヒット時 | 敵画像シェイク + 赤フラッシュ + ダメージ数値ポップ |
 | Spawn | 新カード出現時 | AnimationCurve適用のボヨヨン出現 |
 | ブレイク | 漢字ブレイク発動時 | コンボテキスト表示（MIRROR CLASH / OVERPOWER / ENEMY FUSION BREAK） |
-| 合体不可 | 合体先なし時 | 赤テキスト「合体不可」がボヨヨン出現→上昇→フェードアウト（1.0秒） |
-
-### CFXRパーティクルエフェクト（Cartoon FX Remaster Free）
-| 演出 | タイミング | 使用Prefab | 詳細 |
-|------|-----------|------------|------|
-| 通常攻撃ヒット | Attack/Special/AttackAll発動時 | `CFXR Hit A (Red)` | 敵座標に赤い衝撃波 |
-| 特大ダメージ | 相殺・マウント発動時 | `CFXR3 Fire Explosion B` | 敵座標に炎爆発 + 強カメラシェイク |
-| 合体成功 | 手札合体成功時 | `CFXR4 Firework 1 Cyan-Purple (HDR)` | カード合体中心座標に花火エフェクト |
-| 敵討伐 | 敵HP0時 | `CFXR2 WW Enemy Explosion` | 敵座標に爆発エフェクト → 敵消滅 |
-| 回復 | Heal発動時 | `CFXR3 Magic Aura A (Runic)` | プレイヤーHP座標に魔法陣エフェクト |
-| 防御 | Defense発動時 | `CFXR3 Shield Leaves A (Lit)` | プレイヤーHP座標に葉の盾エフェクト |
-| スタン | Stun発動時 | `CFXR3 Hit Electric C (Air)` | 敵座標に電撃エフェクト |
-
-**描画設定**:
-- Canvas RenderMode: `Screen Space - Camera`（Main Camera割り当て、planeDistance=10）
-- パーティクルZ座標: カメラから距離5の位置（UIの手前に描画）
-- パーティクルScale: `Vector3.one`にリセット
-- 自動破棄: CFXRの`ClearBehavior.Destroy` + フォールバック5秒後Destroy
-
-### カード選択UIフィードバック
-- **トリガー**: プレイヤーが手札のカードを左クリック（タップ）した時
-- **演出内容**:
-  1. **背景色変更**: カード背景が黄色（`#FFD933`）に変わる
-  2. **Outline発光**: Unity UIの`Outline`コンポーネントが追加され、黄金色（`RGBA(1, 0.9, 0.3, 0.9)`）の発光枠が表示される（距離: 3px）
-  3. **浮き上がり**: カードが20px上方向に移動し、選択中であることを視覚的に強調
-- **解除条件**: 同じカードを再クリック / 別カードをクリック / ドラッグ開始 / UI更新時
 
 ---
 
@@ -218,6 +202,7 @@
 | Script | 役割 |
 |--------|------|
 | `AutoBattleTest` | (説明なし) |
+| `AutoBattleVerifier` | (説明なし) |
 | `GameDesignDocGenerator` | 本ドキュメントを自動生成するエディタツール |
 | `PlayModeCardTest` | (説明なし) |
 | `ProjectSetupTool` | ワンクリックでシーン全体を構築（カード/レシピ/敵/UI/VFX生成） |

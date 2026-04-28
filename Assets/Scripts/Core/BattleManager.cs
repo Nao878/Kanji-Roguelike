@@ -49,6 +49,9 @@ public class BattleManager : MonoBehaviour
     [Header("BattleUI参照")]
     public BattleUI battleUI;
 
+    [Header("ゲームオーバー")]
+    public GameObject gameOverPanel;
+
     public enum BattleState
     {
         Idle,
@@ -60,7 +63,34 @@ public class BattleManager : MonoBehaviour
 
     void Start()
     {
-        // 初期状態ではUIを非表示またはリセット
+        battleState = BattleState.Idle;
+        isPlayerTurn = true;
+        isAutoEndingTurn = false;
+        enemyIsStunned = false;
+        currentEnemyData = null;
+        enemyCurrentHP = 0;
+        lastPlayedKanji = "";
+        lastPlayedElement = CardElement.None;
+        elementChainCount = 0;
+
+        if (gameOverPanel != null)
+            gameOverPanel.SetActive(false);
+    }
+
+    /// <summary>
+    /// 全データを初期化（リセット時用）
+    /// </summary>
+    public void ClearData()
+    {
+        currentEnemyData = null;
+        enemyCurrentHP = 0;
+        isPlayerTurn = true;
+        isAutoEndingTurn = false;
+        enemyIsStunned = false;
+        battleState = BattleState.Idle;
+        lastPlayedKanji = "";
+        lastPlayedElement = CardElement.None;
+        elementChainCount = 0;
     }
 
     /// <summary>
@@ -87,6 +117,12 @@ public class BattleManager : MonoBehaviour
 
         Debug.Log($"[BattleManager] 戦闘開始！ 敵:{enemy.enemyName}（HP:{enemy.maxHP}）");
         AddBattleLog($"『{enemy.displayKanji}』{enemy.enemyName}が現れた！");
+
+        // ★ 敵UIを確実にリセット（前回のデスVFXでSetActive(false)された状態を復元）
+        if (battleUI != null)
+        {
+            battleUI.ResetEnemyDisplay();
+        }
 
         // GameManagerにステート変更を通知
         if (GameManager.Instance != null)
@@ -429,6 +465,16 @@ public class BattleManager : MonoBehaviour
             battleState = BattleState.Lost;
             AddBattleLog("敗北...");
             Debug.Log("[BattleManager] 戦闘敗北...");
+
+            // ゲームオーバーパネルを表示
+            if (gameOverPanel != null)
+            {
+                gameOverPanel.SetActive(true);
+            }
+            else if (GameManager.Instance != null && GameManager.Instance.gameOverPanel != null)
+            {
+                GameManager.Instance.gameOverPanel.SetActive(true);
+            }
         }
     }
 

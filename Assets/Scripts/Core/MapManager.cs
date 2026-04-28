@@ -56,6 +56,32 @@ public class MapManager : MonoBehaviour
     }
 
     /// <summary>
+    /// 全データを初期化（リセット時用）
+    /// </summary>
+    public void ClearData()
+    {
+        mapData.Clear();
+        foreach (var go in backgroundKanjis)
+        {
+            if (go != null) Destroy(go);
+        }
+        backgroundKanjis.Clear();
+        riverKanjis.Clear();
+        blinkingNodes.Clear();
+        
+        if (mapContent != null)
+        {
+            foreach (Transform child in mapContent)
+            {
+                if (child != null) Destroy(child.gameObject);
+            }
+        }
+        
+        currentLayer = 0;
+        currentNodeIndex = -1;
+    }
+
+    /// <summary>
     /// マップを生成
     /// </summary>
     public void GenerateMap()

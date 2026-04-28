@@ -50,6 +50,7 @@ public class FieldManager : MonoBehaviour
     /// </summary>
     public void ShowField()
     {
+        Debug.Log("[FieldManager] フィールド再生成実行: マップとシンボルを生成します");
         ClearField();
         CreateBackground();
         SpawnPlayer();
@@ -86,6 +87,16 @@ public class FieldManager : MonoBehaviour
         fieldEnemies.Clear();
 
         if (playerObject != null) Destroy(playerObject);
+    }
+
+    /// <summary>
+    /// 全データを初期化（リセット時用）
+    /// </summary>
+    public void ClearData()
+    {
+        ClearField();
+        fieldEnemies.Clear();
+        currentEncounterIndex = -1;
     }
 
     /// <summary>

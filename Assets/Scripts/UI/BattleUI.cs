@@ -223,6 +223,65 @@ public class BattleUI : MonoBehaviour
     }
 
     /// <summary>
+    /// 戦闘開始時に敵の表示を完全リセット
+    /// 前回の戦闘でSetActive(false)された状態を復元する
+    /// </summary>
+    public void ResetEnemyDisplay()
+    {
+        // 敵エリア全体をアクティブに
+        if (enemyArea != null)
+        {
+            enemyArea.SetActive(true);
+
+            // Imageのalpha値をリセット
+            var img = enemyArea.GetComponent<Image>();
+            if (img != null)
+            {
+                var c = img.color;
+                c.a = Mathf.Max(c.a, 0.15f); // 元の背景透過度を維持
+                img.color = c;
+            }
+
+            // CanvasGroupがあればリセット
+            var cg = enemyArea.GetComponent<CanvasGroup>();
+            if (cg != null)
+            {
+                cg.alpha = 1f;
+                cg.blocksRaycasts = true;
+                cg.interactable = true;
+            }
+
+            // Enemyタグの確認
+            if (!enemyArea.CompareTag("Enemy"))
+            {
+                try { enemyArea.tag = "Enemy"; }
+                catch { Debug.LogWarning("[BattleUI] Enemyタグの設定に失敗"); }
+            }
+        }
+
+        // 敵漢字テキストのalpha値をリセット
+        if (enemyKanjiText != null)
+        {
+            enemyKanjiText.alpha = 1f;
+            enemyKanjiText.color = new Color(0.9f, 0.3f, 0.3f, 1f);
+        }
+
+        // 敵名テキストのalpha値をリセット
+        if (enemyNameText != null)
+        {
+            enemyNameText.alpha = 1f;
+        }
+
+        // 敵HPテキストのalpha値をリセット
+        if (enemyHPText != null)
+        {
+            enemyHPText.alpha = 1f;
+        }
+
+        Debug.Log("[BattleUI] 敵表示リセット完了");
+    }
+
+    /// <summary>
     /// ステータスUIを更新
     /// </summary>
     public void UpdateStatusUI()

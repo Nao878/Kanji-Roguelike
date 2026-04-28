@@ -15,11 +15,12 @@ public class EncyclopediaManager : MonoBehaviour
     {
         if (Instance != null && Instance != this)
         {
-            Destroy(this.gameObject);
+            // GameObjectごと破棄せず自分だけ破棄する（GameManagerを巻き込まないため）
+            Destroy(this);
             return;
         }
         Instance = this;
-        DontDestroyOnLoad(this.gameObject);
+        // データはPlayerPrefsに保存済みのため、DontDestroyOnLoadは不要
         LoadUnlockedData();
     }
 

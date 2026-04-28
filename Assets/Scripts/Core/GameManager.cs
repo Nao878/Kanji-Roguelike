@@ -52,6 +52,9 @@ public class GameManager : MonoBehaviour
     public GameObject deckEditPanel;
     public FusionSelectionUI fusionSelectionUI;
 
+    [Header("ゲームオーバー")]
+    public GameObject gameOverPanel;
+
     public void ShowFusionSelectionUI(List<int> resultIds, System.Action<int> onSelected)
     {
         if (fusionSelectionUI != null)
@@ -77,6 +80,23 @@ public class GameManager : MonoBehaviour
             return;
         }
         Instance = this;
+
+        // シーン開始時の完全初期化（リトライ後も含む）
+        playerHP = playerMaxHP;
+        currentState = GameState.Field;
+        playerMana = playerStartMana;
+        playerMaxMana = playerStartMana;
+        playerGold = startGold;
+        playerAttackBuff = 0;
+        playerDefenseBuff = 0;
+
+        drawPile.Clear();
+        discardPile.Clear();
+        hand.Clear();
+
+        // GameOverPanelを確実に非表示
+        if (gameOverPanel != null)
+            gameOverPanel.SetActive(false);
     }
 
     private void Start()
@@ -116,6 +136,17 @@ public class GameManager : MonoBehaviour
             deckManager.AutoFillDeck(inventory);
         }
 
+        // リトライボタンの初期化
+        if (gameOverPanel != null)
+        {
+            var btn = gameOverPanel.GetComponentInChildren<UnityEngine.UI.Button>(true);
+            if (btn != null)
+            {
+                btn.onClick.RemoveAllListeners();
+                btn.onClick.AddListener(ResetGame);
+            }
+        }
+
         ChangeState(GameState.Field);
     }
 
@@ -135,6 +166,7 @@ public class GameManager : MonoBehaviour
         if (shopPanel != null) shopPanel.SetActive(newState == GameState.Shop);
         if (dojoPanel != null) dojoPanel.SetActive(newState == GameState.Dojo);
         if (deckEditPanel != null) deckEditPanel.SetActive(newState == GameState.DeckEdit);
+        if (gameOverPanel != null) gameOverPanel.SetActive(newState == GameState.GameOver);
 
         switch (newState)
         {
@@ -148,6 +180,11 @@ public class GameManager : MonoBehaviour
                 break;
             case GameState.GameOver:
                 Debug.Log("[GameManager] ゲームオーバー！");
+                // ゲームオーバーパネルを表示
+                if (gameOverPanel != null)
+                {
+                    gameOverPanel.SetActive(true);
+                }
                 break;
         }
     }
@@ -507,6 +544,22 @@ public class GameManager : MonoBehaviour
     }
 
     // discardPile は廃止。参照が残っている場合のための空リスト
+
+    /// <summary>
+    /// ゲームをリセット（最初からやり直し）
+    /// </summary>
+    public void ResetGame()
+    {
+        Debug.Log("[GameManager] ゲームリセット開始");
+
+        Time.timeScale = 1f;
+
+        // シーンリロードで全オブジェクトが再生成されるため、ここではTimeScaleのみリセット
+        // Instance の null 代入は不要（UnityはDestroyされたオブジェクトをnull等価として扱う）
+        UnityEngine.SceneManagement.SceneManager.LoadScene(
+            UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex
+        );
+    }
 
 }
 

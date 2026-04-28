@@ -65,6 +65,7 @@ public class ProjectSetupTool : EditorWindow
         var encyclopediaPanel = CreateEncyclopediaPanel(canvas.transform);
         var fusionSelectionPanel = CreateFusionSelectionPanel(canvas.transform);
         var inventoryPanel = CreateInventoryPanel(canvas.transform);
+        var gameOverPanel = CreateGameOverPanel(canvas.transform);
 
         // フィールドパネルにボタンを接続
         var fieldDeckBtn = fieldPanel.transform.Find("FieldDeckBtn")?.GetComponent<Button>();
@@ -77,7 +78,7 @@ public class ProjectSetupTool : EditorWindow
         if (fieldEncycBtn != null) fieldEncycBtn.onClick.AddListener(() => encyclopediaPanel.SetActive(true));
 
         // 参照の割り当て
-        AssignReferences(gameManager, battleManager, mapManager, fieldManager, fusionEngine, fieldPanel, mapPanel, battlePanel, fusionPanel, shopPanel, dojoPanel);
+        AssignReferences(gameManager, battleManager, mapManager, fieldManager, fusionEngine, fieldPanel, mapPanel, battlePanel, fusionPanel, shopPanel, dojoPanel, gameOverPanel);
 
         // 初期インベントリ設定
         SetupInitialInventory(gameManager, cards);
@@ -1300,7 +1301,7 @@ public class ProjectSetupTool : EditorWindow
     // 参照の割り当て
     // ====================================
     private static void AssignReferences(GameManager gm, BattleManager bm, MapManager mm, FieldManager fm, KanjiFusionEngine fe,
-        GameObject fieldPanel, GameObject mapPanel, GameObject battlePanel, GameObject fusionPanel, GameObject shopPanel, GameObject dojoPanel)
+        GameObject fieldPanel, GameObject mapPanel, GameObject battlePanel, GameObject fusionPanel, GameObject shopPanel, GameObject dojoPanel, GameObject gameOverPanel)
     {
         gm.battleManager = bm;
         gm.mapManager = mm;
@@ -1312,6 +1313,10 @@ public class ProjectSetupTool : EditorWindow
         gm.fusionPanel = fusionPanel;
         gm.shopPanel = shopPanel;
         gm.dojoPanel = dojoPanel;
+        gm.gameOverPanel = gameOverPanel;
+        
+        // BattleManagerにもgameOverPanelを接続
+        bm.gameOverPanel = gameOverPanel;
         
         var canvasTransform = fieldPanel.transform.parent;
         gm.fusionSelectionUI = canvasTransform.Find("FusionSelectionPanel")?.GetComponent<FusionSelectionUI>();
@@ -1552,6 +1557,114 @@ public class ProjectSetupTool : EditorWindow
         if (appFont != null) tmp.font = appFont;
 
         return go;
+    }
+
+    // ====================================
+    // ゲームオーバーパネル作成
+    // ====================================
+    private static GameObject CreateGameOverPanel(Transform parent)
+    {
+        // 全画面を覆う半透明パネル
+        var panel = new GameObject("GameOverPanel");
+        panel.transform.SetParent(parent, false);
+
+        var panelRect = panel.AddComponent<RectTransform>();
+        panelRect.anchorMin = Vector2.zero;
+        panelRect.anchorMax = Vector2.one;
+        panelRect.offsetMin = Vector2.zero;
+        panelRect.offsetMax = Vector2.zero;
+
+        var panelImage = panel.AddComponent<Image>();
+        panelImage.color = new Color(0.05f, 0.02f, 0.02f, 0.92f); // ほぼ黒の半透明
+
+        // 装飾ライン（上）
+        var topLine = new GameObject("TopLine");
+        topLine.transform.SetParent(panel.transform, false);
+        var topLineRect = topLine.AddComponent<RectTransform>();
+        topLineRect.anchorMin = new Vector2(0.15f, 0.72f);
+        topLineRect.anchorMax = new Vector2(0.85f, 0.725f);
+        topLineRect.offsetMin = Vector2.zero;
+        topLineRect.offsetMax = Vector2.zero;
+        var topLineImg = topLine.AddComponent<Image>();
+        topLineImg.color = new Color(0.6f, 0.15f, 0.15f, 0.8f);
+        topLineImg.raycastTarget = false;
+
+        // 「敗北」メインテキスト
+        var defeatTextGo = new GameObject("DefeatText");
+        defeatTextGo.transform.SetParent(panel.transform, false);
+        var defeatRect = defeatTextGo.AddComponent<RectTransform>();
+        defeatRect.anchorMin = new Vector2(0.1f, 0.45f);
+        defeatRect.anchorMax = new Vector2(0.9f, 0.72f);
+        defeatRect.offsetMin = Vector2.zero;
+        defeatRect.offsetMax = Vector2.zero;
+        var defeatText = defeatTextGo.AddComponent<TextMeshProUGUI>();
+        defeatText.text = "敗  北";
+        defeatText.fontSize = 90;
+        defeatText.color = new Color(0.85f, 0.2f, 0.2f, 1f);
+        defeatText.alignment = TextAlignmentOptions.Center;
+        defeatText.fontStyle = FontStyles.Bold;
+        if (appFont != null) defeatText.font = appFont;
+        defeatText.outlineWidth = 0.25f;
+        defeatText.outlineColor = new Color(0.3f, 0f, 0f, 1f);
+        defeatText.raycastTarget = false;
+
+        // 装飾ライン（下）
+        var bottomLine = new GameObject("BottomLine");
+        bottomLine.transform.SetParent(panel.transform, false);
+        var bottomLineRect = bottomLine.AddComponent<RectTransform>();
+        bottomLineRect.anchorMin = new Vector2(0.15f, 0.44f);
+        bottomLineRect.anchorMax = new Vector2(0.85f, 0.445f);
+        bottomLineRect.offsetMin = Vector2.zero;
+        bottomLineRect.offsetMax = Vector2.zero;
+        var bottomLineImg = bottomLine.AddComponent<Image>();
+        bottomLineImg.color = new Color(0.6f, 0.15f, 0.15f, 0.8f);
+        bottomLineImg.raycastTarget = false;
+
+        // サブテキスト
+        var subTextGo = new GameObject("SubText");
+        subTextGo.transform.SetParent(panel.transform, false);
+        var subRect = subTextGo.AddComponent<RectTransform>();
+        subRect.anchorMin = new Vector2(0.2f, 0.36f);
+        subRect.anchorMax = new Vector2(0.8f, 0.44f);
+        subRect.offsetMin = Vector2.zero;
+        subRect.offsetMax = Vector2.zero;
+        var subText = subTextGo.AddComponent<TextMeshProUGUI>();
+        subText.text = "漢字の力が尽きた...";
+        subText.fontSize = 22;
+        subText.color = new Color(0.6f, 0.5f, 0.5f, 0.8f);
+        subText.alignment = TextAlignmentOptions.Center;
+        if (appFont != null) subText.font = appFont;
+        subText.raycastTarget = false;
+
+        // 「最初から」リトライボタン
+        var retryBtn = CreateButton(panel.transform, "RetryButton", "最初から", 28,
+            new Vector2(0.3f, 0.2f), new Vector2(0.7f, 0.32f),
+            new Color(0.6f, 0.2f, 0.2f), null);
+
+        // ボタンのクリックイベント設定
+        var button = retryBtn.GetComponent<Button>();
+        if (button != null)
+        {
+            button.onClick.AddListener(() =>
+            {
+                if (GameManager.Instance != null)
+                {
+                    GameManager.Instance.ResetGame();
+                }
+                else
+                {
+                    // フォールバック：直接シーンリロード
+                    UnityEngine.SceneManagement.SceneManager.LoadScene(
+                        UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex);
+                }
+            });
+        }
+
+        // 初期状態は非表示
+        panel.SetActive(false);
+
+        Debug.Log("  ゲームオーバーパネル作成完了");
+        return panel;
     }
 
 

@@ -39,5 +39,16 @@ public class DebugBattleHelper : MonoBehaviour
                 }
             }
         }
+        // Gキーで強制ゲームオーバー（敗北テスト用）
+        if (Keyboard.current != null && Keyboard.current.gKey.wasPressedThisFrame)
+        {
+            var gm = GameManager.Instance;
+            if (gm != null && gm.currentState == GameState.Battle)
+            {
+                gm.playerHP = 0;
+                Debug.Log("[DebugHelper] 強制ゲームオーバー！ HP=0に設定");
+                gm.ChangeState(GameState.GameOver);
+            }
+        }
     }
 }
