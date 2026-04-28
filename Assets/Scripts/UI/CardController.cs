@@ -199,10 +199,11 @@ public class CardController : MonoBehaviour,
             return true;
         }
 
-        // 通常のカード使用
-        if (gm.playerMana < cardData.cost)
+        // 通常のカード使用（合体カードはコスト一律1）
+        int actualCost = cardData.isFusionResult ? 1 : cardData.cost;
+        if (gm.playerMana < actualCost)
         {
-            Debug.Log($"[CardController] マナ不足！ 必要:{cardData.cost} 現在:{gm.playerMana}");
+            Debug.Log($"[CardController] マナ不足！ 必要:{actualCost} 現在:{gm.playerMana}");
             ReturnToHand();
             return false;
         }
@@ -286,6 +287,19 @@ public class CardController : MonoBehaviour,
                 gm.AddToInventory(resultCard);
                 if (EncyclopediaManager.Instance != null) EncyclopediaManager.Instance.UnlockCard(resultCard.cardId);
 
+                // 【タスク3】合体成功時 AP+1
+                gm.playerMana += 1;
+                Debug.Log($"[CardController] 合体成功！AP+1（現在AP:{gm.playerMana}）");
+
+                // 【タスク3】「1 MORE」VFX表示
+                if (VFXManager.Instance != null && gm.battleManager != null && gm.battleManager.battleUI != null)
+                {
+                    VFXManager.Instance.PlayComboEffect(
+                        gm.battleManager.battleUI.gameObject,
+                        "1 MORE",
+                        new Color(0f, 1f, 0.5f));
+                }
+
                 // 古いオブジェクト削除
                 Destroy(targetCard.gameObject);
                 Destroy(gameObject);
@@ -304,6 +318,11 @@ public class CardController : MonoBehaviour,
             gm.hand.Add(resultCard);
             gm.AddToInventory(resultCard);
             if (EncyclopediaManager.Instance != null) EncyclopediaManager.Instance.UnlockCard(resultCard.cardId);
+
+            // 【タスク3】合体成功時 AP+1（Fallback）
+            gm.playerMana += 1;
+            Debug.Log($"[CardController] 合体成功！AP+1（現在AP:{gm.playerMana}）");
+
             Destroy(targetCard.gameObject);
             Destroy(gameObject);
             onHandChanged?.Invoke();

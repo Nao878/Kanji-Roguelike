@@ -215,17 +215,20 @@ public class GameManager : MonoBehaviour
     /// </summary>
     public bool UseCard(KanjiCardData card)
     {
-        if (playerMana < card.cost)
+        // 合体カードは消費AP一律1
+        int actualCost = card.isFusionResult ? 1 : card.cost;
+
+        if (playerMana < actualCost)
         {
-            Debug.Log($"[GameManager] マナ不足！ 必要:{card.cost} 現在:{playerMana}");
+            Debug.Log($"[GameManager] マナ不足！ 必要:{actualCost} 現在:{playerMana}");
             return false;
         }
 
-        playerMana -= card.cost;
+        playerMana -= actualCost;
         hand.Remove(card);
         discardPile.Add(card); // 捨て札へ
 
-        Debug.Log($"[GameManager] カード使用: {card.kanji}（捨て札へ移動、残マナ:{playerMana}）");
+        Debug.Log($"[GameManager] カード使用: {card.kanji}（コスト:{actualCost} 捨て札へ移動、残マナ:{playerMana}）");
         return true;
     }
 
@@ -280,10 +283,14 @@ public class GameManager : MonoBehaviour
         playerMana += playerMaxMana; 
         playerDefenseBuff = 0;
         
-        // 手札補充
-        DrawFromDeck(initialHandSize);
+        // 手札補充：手札上限 - 現在の手札枚数だけドロー（差分ドロー方式）
+        int drawCount = Mathf.Max(0, initialHandSize - hand.Count);
+        if (drawCount > 0)
+        {
+            DrawFromDeck(drawCount);
+        }
         
-        Debug.Log($"[GameManager] プレイヤーターン開始 マナ:{playerMana}");
+        Debug.Log($"[GameManager] プレイヤーターン開始 マナ:{playerMana} 手札:{hand.Count}枚");
     }
 
 
