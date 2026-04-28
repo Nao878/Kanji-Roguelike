@@ -165,26 +165,52 @@ public class GameDesignDocGenerator : EditorWindow
         }
         sb.AppendLine();
 
-        sb.AppendLine("### ターン進行");
-        sb.AppendLine("1. **プレイヤーターン**: マナを消費してカードを使用");
-        sb.AppendLine("2. **ターン終了**: 「終」ボタンを押す or マナが尽きたら任意で終了");
-        sb.AppendLine("3. **敵ターン**: 敵が自動で攻撃（attackPower分のダメージ）");
-        sb.AppendLine("4. **スタン状態**: 敵がスタン中は敵ターンをスキップし、スタンを解除");
+        sb.AppendLine("### AP（行動力）とターン進行");
+        sb.AppendLine("- **AP制限の撤廃**: 最大値の制限なく、合体やブレイクでAPを無限に蓄積可能。毎ターン開始時に基本AP(3)が加算される。");
+        sb.AppendLine("- **合体カードのコスト**: 合体済みカード（`isFusionResult == true`）の使用時消費APは一律 **1**。");
+        sb.AppendLine("- **手札補充（差分ドロー）**: ターン開始時、手札上限(5枚) - 現在の手札枚数 だけドロー。既に5枚以上持っている場合はドローしない。");
+        sb.AppendLine();
+        sb.AppendLine("1. **プレイヤーターン**: APを消費してカードを使用");
+        sb.AppendLine("2. **ターン終了**: 「終」ボタンを押す or APが尽きたら任意で終了");
+        sb.AppendLine("3. **敵ターン**: 敵が自動で攻撃（attackPower分のダメージ） → 自動的にプレイヤーターンへ戻る");
+        sb.AppendLine("4. **スタン状態**: 敵がスタン中は敵ターンをスキップし、スタンを解除してプレイヤーターン再開（手札・山札を維持）");
         sb.AppendLine("5. **繰り返し**: 敵HPが0になるか、プレイヤーHPが0になるまで");
         sb.AppendLine();
 
-        sb.AppendLine("### カード操作（Drag & Drop）");
-        sb.AppendLine("カードは `CardController` で制御されるドラッグ＆ドロップ方式です。");
+        sb.AppendLine("#### オートターンエンド");
+        sb.AppendLine("- APが0かつ、手札で可能なアクション（カード使用・合体・敵合体）が一切なくなった場合、自動的に敵のターンへ移行する。");
+        sb.AppendLine("- **安全装置**: ターン開始（ドロー演出中など）から1.0秒間は判定を行わず、誤ってターンが終了するのを防ぐ。");
+        sb.AppendLine("- **フェイルセーフ**: 山札・捨て札・手札がすべて空になった場合、無限ループを防止するため強制的にターンを終了し、エラーログを出力する。");
+        sb.AppendLine();
+
+        sb.AppendLine("### 戦闘メカニクス「漢字ブレイク」");
+        sb.AppendLine("特定の条件でボーナスが発生する「1 MORE」風システム。");
+        sb.AppendLine();
+        sb.AppendLine("| ブレイク名 | 条件 | 効果 |");
+        sb.AppendLine("|-----------|------|------|");
+        sb.AppendLine("| **相殺 (Mirror Clash)** | 敵と同じ漢字で攻撃 | ダメージ3倍 ＆ AP+1 |");
+        sb.AppendLine("| **構成数マウント (Overpower)** | 敵より構成数（パーツ数）が多い漢字で攻撃 | ダメージ1.5倍 |");
+        sb.AppendLine("| **敵合体 (Enemy Fusion Break)** | 敵にカードをドラッグして合体 | 敵が変化しスタン状態 ＆ AP+1 |");
+        sb.AppendLine();
+
+        sb.AppendLine("### 合体成功時ボーナス「1 MORE」");
+        sb.AppendLine("- バトル中の手札合体（Fusion）が成功した際、プレイヤーのAPを即座に **+1** する。");
+        sb.AppendLine("- 合体成功時、画面上に「**1 MORE**」というテキストVFXを表示する。");
+        sb.AppendLine();
+
+        sb.AppendLine("### カード操作（Drag & Drop + タップ合体ボタン）");
+        sb.AppendLine("カードは `CardController` で制御されるドラッグ＆ドロップ＋タップ方式です。");
         sb.AppendLine();
         sb.AppendLine("| 操作 | ドロップ先 | 効果 |");
         sb.AppendLine("|------|-----------|------|");
         sb.AppendLine("| ドラッグ→敵 | Tag `Enemy` | カード効果発動（攻撃/回復/バフ等） |");
         sb.AppendLine("| ドラッグ→カード | Tag `Card` | 合体判定→成功で進化カード生成 |");
+        sb.AppendLine("| タップ | 手札カード | 合体可能なカードBの上に「合体→結果漢字」ボタンを表示 |");
         sb.AppendLine("| ドラッグ→何もない | - | 手札に戻る |");
         sb.AppendLine();
 
         sb.AppendLine("### 合体判定フロー（バトル中）");
-        sb.AppendLine("1. カードAをカードBにドラッグ＆ドロップ");
+        sb.AppendLine("1. カードAをカードBにドラッグ＆ドロップ（またはカードAをタップ→Bの上のボタンを押す）");
         sb.AppendLine("2. `GameManager.FindFusionResult(A.cardId, B.cardId)` でレシピ検索");
         sb.AppendLine("3. レシピが存在 → VFX演出（吸い寄せ→閃光→消滅→新カード出現）");
         sb.AppendLine("4. 手札からA,Bを除去し、結果カードを手札に追加");
@@ -213,8 +239,10 @@ public class GameDesignDocGenerator : EditorWindow
         sb.AppendLine("| 演出 | タイミング | 詳細 |");
         sb.AppendLine("|------|-----------|------|");
         sb.AppendLine("| 合体シーケンス | 合体成功時 | 2枚が中央に吸い寄せ→縮小→閃光→新カードSpawn |");
+        sb.AppendLine("| 1 MORE | 合体成功時 | 「1 MORE」テキストがボヨヨン出現→上昇→フェードアウト |");
         sb.AppendLine("| ダメージ | 攻撃ヒット時 | 敵画像シェイク + 赤フラッシュ + ダメージ数値ポップ |");
         sb.AppendLine("| Spawn | 新カード出現時 | AnimationCurve適用のボヨヨン出現 |");
+        sb.AppendLine("| ブレイク | 漢字ブレイク発動時 | コンボテキスト表示（MIRROR CLASH / OVERPOWER / ENEMY FUSION BREAK） |");
         sb.AppendLine();
         sb.AppendLine("---");
         sb.AppendLine();

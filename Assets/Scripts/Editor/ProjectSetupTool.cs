@@ -723,6 +723,9 @@ public class ProjectSetupTool : EditorWindow
         bfaComponent.fuseButton = bfaFuseBtn.GetComponent<Button>();
         bfaComponent.clearButton = bfaClearBtn.GetComponent<Button>();
 
+        // BattleFusionArea は廃止（ボタン方式に移行済み）→ 非アクティブ化
+        battleFusionArea.SetActive(false);
+
         // プレイヤー情報は上で作成済みなので削除
 
         // 手札エリア
@@ -1104,62 +1107,7 @@ public class ProjectSetupTool : EditorWindow
     // ====================================
     // デッキ確認パネル作成 (旧方式)
     // ====================================
-    private static GameObject CreateDeckViewerPanel(Transform parent)
-    {
-        var panel = CreatePanel(parent, "DeckViewerPanel", new Color(0.1f, 0.15f, 0.1f, 0.98f));
-
-        var titleText = CreateText(panel.transform, "Title", "🎴 山札確認 🎴", 40, new Vector2(0, 0.85f), new Vector2(1, 0.95f), TextAlignmentOptions.Center);
-        var closeBtn = CreateButton(panel.transform, "CloseBtn", "閉じる", 22, new Vector2(0.4f, 0.05f), new Vector2(0.6f, 0.12f), new Color(0.5f, 0.3f, 0.3f), null);
-
-        var scrollView = new GameObject("CardScrollView");
-        scrollView.transform.SetParent(panel.transform, false);
-        var svRect = scrollView.AddComponent<RectTransform>();
-        svRect.anchorMin = new Vector2(0.1f, 0.15f);
-        svRect.anchorMax = new Vector2(0.9f, 0.8f);
-        svRect.offsetMin = Vector2.zero;
-        svRect.offsetMax = Vector2.zero;
-        
-        var scrollRect = scrollView.AddComponent<ScrollRect>();
-        var viewport = new GameObject("Viewport");
-        viewport.transform.SetParent(scrollView.transform, false);
-        var vpRect = viewport.AddComponent<RectTransform>();
-        vpRect.anchorMin = Vector2.zero;
-        vpRect.anchorMax = Vector2.one;
-        vpRect.offsetMin = Vector2.zero;
-        vpRect.offsetMax = Vector2.zero;
-        var vpMask = viewport.AddComponent<Image>();
-        viewport.AddComponent<Mask>().showMaskGraphic = false;
-
-        var content = new GameObject("Content");
-        content.transform.SetParent(viewport.transform, false);
-        var contentRect = content.AddComponent<RectTransform>();
-        contentRect.anchorMin = new Vector2(0, 1);
-        contentRect.anchorMax = new Vector2(1, 1);
-        contentRect.pivot = new Vector2(0.5f, 1);
-        contentRect.sizeDelta = new Vector2(0, 300);
-
-        var grid = content.AddComponent<GridLayoutGroup>();
-        grid.cellSize = new Vector2(90, 130);
-        grid.spacing = new Vector2(15, 15);
-        grid.padding = new RectOffset(20, 20, 20, 20);
-        grid.childAlignment = TextAnchor.UpperCenter;
-        
-        var csf = content.AddComponent<ContentSizeFitter>();
-        csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-        scrollRect.content = contentRect;
-        scrollRect.viewport = vpRect;
-        scrollRect.horizontal = false;
-        scrollRect.vertical = true;
-        scrollRect.scrollSensitivity = 20;
-
-        var ui = panel.AddComponent<DeckViewerUI>();
-        ui.cardListArea = contentRect;
-        ui.closeButton = closeBtn.GetComponent<Button>();
-
-        panel.SetActive(false);
-        return panel;
-    }
+    // CreateDeckViewerPanel: 削除済み（InventoryPanel方式に移行済み）
 
     // ====================================
     // 漢字図鑑パネル作成
@@ -1286,8 +1234,7 @@ public class ProjectSetupTool : EditorWindow
                 bm.battleUI = battleUI;
             }
 
-            var bfa = battlePanel.transform.Find("BattleFusionArea")?.GetComponent<BattleFusionArea>();
-            if (bfa != null) bfa.appFont = appFont;
+            // BattleFusionArea は廃止済み（ボタン方式に移行）
 
             var fusionUI = fusionPanel.GetComponent<FusionUI>();
             if (fusionUI != null) fusionUI.appFont = appFont;

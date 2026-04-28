@@ -420,6 +420,145 @@ public class VFXManager : MonoBehaviour
         StartCoroutine(CoComboText(textObj));
     }
 
+    // ===========================================
+    // 「1 MORE」巨大演出 (Fusion Bonus)
+    // ===========================================
+
+    /// <summary>
+    /// 合体成功時に画面中央に大きく「1 MORE」を表示する演出
+    /// </summary>
+    public void PlayOneMoreEffect()
+    {
+        // Canvas直下に配置
+        Transform canvasParent = transform.parent;
+        if (canvasParent == null)
+        {
+            // VFXManagerがCanvas以下にない場合、シーンのCanvasを探す
+            var canvas = FindFirstObjectByType<Canvas>();
+            if (canvas != null) canvasParent = canvas.transform;
+            else canvasParent = transform;
+        }
+
+        // 背景暗転（半透明黒パネル）
+        GameObject dimObj = new GameObject("OneMoreDim");
+        dimObj.transform.SetParent(canvasParent, false);
+        dimObj.transform.SetAsLastSibling();
+        var dimRect = dimObj.AddComponent<RectTransform>();
+        dimRect.anchorMin = Vector2.zero;
+        dimRect.anchorMax = Vector2.one;
+        dimRect.offsetMin = Vector2.zero;
+        dimRect.offsetMax = Vector2.zero;
+        var dimImg = dimObj.AddComponent<Image>();
+        dimImg.color = new Color(0f, 0f, 0f, 0f); // 初期は透明
+        dimImg.raycastTarget = false;
+
+        // テキストオブジェクト
+        GameObject textObj = new GameObject("OneMoreText");
+        textObj.transform.SetParent(canvasParent, false);
+        textObj.transform.SetAsLastSibling();
+
+        var textRect = textObj.AddComponent<RectTransform>();
+        textRect.anchorMin = new Vector2(0.5f, 0.5f);
+        textRect.anchorMax = new Vector2(0.5f, 0.5f);
+        textRect.anchoredPosition = Vector2.zero;
+        textRect.sizeDelta = new Vector2(600f, 200f);
+
+        var tmp = textObj.AddComponent<TextMeshProUGUI>();
+        tmp.text = "1 MORE";
+        tmp.fontSize = 120;
+        tmp.color = new Color(1f, 0.84f, 0f, 1f); // ゴールド (#FFD700)
+        tmp.alignment = TextAlignmentOptions.Center;
+        tmp.fontStyle = FontStyles.Bold;
+        if (appFont != null) tmp.font = appFont;
+
+        // アウトライン（太め）
+        tmp.outlineWidth = 0.4f;
+        tmp.outlineColor = new Color(0.2f, 0f, 0f, 1f); // 暗い赤
+
+        // 影（筆文字風の雰囲気）
+        tmp.enableVertexGradient = true;
+        tmp.colorGradient = new VertexGradient(
+            new Color(1f, 0.95f, 0.4f),   // 左上
+            new Color(1f, 0.95f, 0.4f),   // 右上
+            new Color(1f, 0.6f, 0.1f),    // 左下
+            new Color(1f, 0.6f, 0.1f)     // 右下
+        );
+
+        StartCoroutine(CoOneMoreEffect(dimObj, textObj));
+    }
+
+    private IEnumerator CoOneMoreEffect(GameObject dimObj, GameObject textObj)
+    {
+        float totalDuration = 1.8f;
+        float elapsed = 0f;
+
+        var dimImg = dimObj.GetComponent<Image>();
+        var tmp = textObj.GetComponent<TextMeshProUGUI>();
+        var textRect = textObj.GetComponent<RectTransform>();
+
+        // 初期状態：スケール0
+        textObj.transform.localScale = Vector3.zero;
+        Vector2 startPos = textRect.anchoredPosition;
+
+        while (elapsed < totalDuration)
+        {
+            if (textObj == null || dimObj == null) yield break;
+
+            float t = elapsed / totalDuration;
+
+            // --- Phase 1: 出現（0〜0.15） ボヨヨンスケール ---
+            if (t < 0.15f)
+            {
+                float phase = t / 0.15f;
+                float scale = Mathf.Lerp(0f, 2.0f, phase);
+                textObj.transform.localScale = Vector3.one * scale;
+                // 暗転もフェードイン
+                dimImg.color = new Color(0f, 0f, 0f, Mathf.Lerp(0f, 0.3f, phase));
+            }
+            // --- Phase 2: バウンス戻し（0.15〜0.25） ---
+            else if (t < 0.25f)
+            {
+                float phase = (t - 0.15f) / 0.1f;
+                float scale = Mathf.Lerp(2.0f, 0.9f, phase);
+                textObj.transform.localScale = Vector3.one * scale;
+            }
+            // --- Phase 3: 安定化（0.25〜0.35） ---
+            else if (t < 0.35f)
+            {
+                float phase = (t - 0.25f) / 0.1f;
+                float scale = Mathf.Lerp(0.9f, 1.1f, phase);
+                textObj.transform.localScale = Vector3.one * scale;
+            }
+            // --- Phase 4: 最終スケール固定＋表示維持（0.35〜0.65） ---
+            else if (t < 0.65f)
+            {
+                textObj.transform.localScale = Vector3.one * 1.1f;
+            }
+            // --- Phase 5: フェードアウト + 上昇（0.65〜1.0） ---
+            else
+            {
+                float phase = (t - 0.65f) / 0.35f;
+                float alpha = Mathf.Lerp(1f, 0f, phase);
+                tmp.alpha = alpha;
+                dimImg.color = new Color(0f, 0f, 0f, Mathf.Lerp(0.3f, 0f, phase));
+
+                // 上方向に移動
+                float yOffset = Mathf.Lerp(0f, 80f, phase);
+                textRect.anchoredPosition = startPos + new Vector2(0, yOffset);
+
+                // 少しスケールアップ
+                float scale = Mathf.Lerp(1.1f, 1.3f, phase);
+                textObj.transform.localScale = Vector3.one * scale;
+            }
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        Destroy(dimObj);
+        Destroy(textObj);
+    }
+
     private IEnumerator CoComboText(GameObject obj)
     {
         float duration = 1.2f;

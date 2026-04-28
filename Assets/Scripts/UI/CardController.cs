@@ -6,7 +6,7 @@ using TMPro;
 
 /// <summary>
 /// ドラッグ＆ドロップ操作を基本としたカードコントローラー
-/// IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerEnterHandler, IPointerExitHandler を実装
+/// タップ（クリック）で合体ボタン表示、ドラッグで敵攻撃・カード合体に対応
 /// </summary>
 public class CardController : MonoBehaviour,
     IBeginDragHandler, IDragHandler, IEndDragHandler,
@@ -39,6 +39,10 @@ public class CardController : MonoBehaviour,
     // 合成プレビュー状態
     private bool isHighlighted = false;
     private Color originalColor;
+
+    // 合体ボタン管理（静的：全カードで共有）
+    private static List<GameObject> activeFusionButtons = new List<GameObject>();
+    private static CardController selectedCard = null;
 
     // コールバック
     public System.Action onCardUsed;
@@ -88,6 +92,9 @@ public class CardController : MonoBehaviour,
         var gm = GameManager.Instance;
         if (gm == null || gm.currentState != GameState.Battle) return;
         if (gm.battleManager == null || gm.battleManager.battleState != BattleManager.BattleState.PlayerTurn) return;
+
+        // ドラッグ開始時に合体ボタンをクリア
+        ClearAllFusionButtons();
 
         // 元の親と位置を記憶
         originalParent = transform.parent;
@@ -156,14 +163,6 @@ public class CardController : MonoBehaviour,
                     break;
                 }
             }
-
-            // BattleFusionAreaへのドロップ
-            var bfa = result.gameObject.GetComponentInParent<BattleFusionArea>();
-            if (bfa != null)
-            {
-                handled = bfa.ReceiveCard(this);
-                if (handled) break;
-            }
         }
 
         if (!handled)
@@ -180,9 +179,6 @@ public class CardController : MonoBehaviour,
     // ============================================
 
     /// <summary>
-    /// 敵にドロップ → カード効果発動
-    /// </summary>
-    /// <summary>
     /// 敵にドロップ → 合成チェック または カード効果発動
     /// </summary>
     private bool HandleDropOnEnemy()
@@ -190,7 +186,7 @@ public class CardController : MonoBehaviour,
         var gm = GameManager.Instance;
         if (gm == null || cardData == null) return false;
 
-        // 【タスク2-3】敵との強制合体チェック
+        // 敵との強制合体チェック
         if (gm.battleManager.TryEnemyFusion(cardData))
         {
             // 合体成功（カードはTryEnemyFusion内で消費済み）
@@ -287,17 +283,14 @@ public class CardController : MonoBehaviour,
                 gm.AddToInventory(resultCard);
                 if (EncyclopediaManager.Instance != null) EncyclopediaManager.Instance.UnlockCard(resultCard.cardId);
 
-                // 【タスク3】合体成功時 AP+1
+                // 合体成功時 AP+1
                 gm.playerMana += 1;
                 Debug.Log($"[CardController] 合体成功！AP+1（現在AP:{gm.playerMana}）");
 
-                // 【タスク3】「1 MORE」VFX表示
-                if (VFXManager.Instance != null && gm.battleManager != null && gm.battleManager.battleUI != null)
+                // 「1 MORE」巨大VFX表示
+                if (VFXManager.Instance != null)
                 {
-                    VFXManager.Instance.PlayComboEffect(
-                        gm.battleManager.battleUI.gameObject,
-                        "1 MORE",
-                        new Color(0f, 1f, 0.5f));
+                    VFXManager.Instance.PlayOneMoreEffect();
                 }
 
                 // 古いオブジェクト削除
@@ -319,7 +312,7 @@ public class CardController : MonoBehaviour,
             gm.AddToInventory(resultCard);
             if (EncyclopediaManager.Instance != null) EncyclopediaManager.Instance.UnlockCard(resultCard.cardId);
 
-            // 【タスク3】合体成功時 AP+1（Fallback）
+            // 合体成功時 AP+1（Fallback）
             gm.playerMana += 1;
             Debug.Log($"[CardController] 合体成功！AP+1（現在AP:{gm.playerMana}）");
 
@@ -445,12 +438,24 @@ public class CardController : MonoBehaviour,
         }
     }
 
+    // ============================================
+    // タップ（クリック）による合体ボタン表示
+    // ============================================
+
     /// <summary>
-    /// 右クリックで分解
+    /// 左クリック: 合体可能なカードの上に「合体」ボタンを表示
+    /// 右クリック: 分解
     /// </summary>
     public void OnPointerClick(PointerEventData eventData)
     {
-        if (eventData.button == PointerEventData.InputButton.Right)
+        // ドラッグ操作後のクリックは無視
+        if (eventData.dragging) return;
+
+        if (eventData.button == PointerEventData.InputButton.Left)
+        {
+            HandleTapForFusion();
+        }
+        else if (eventData.button == PointerEventData.InputButton.Right)
         {
             var gm = GameManager.Instance;
             if (gm != null && gm.currentState == GameState.Battle && cardData != null)
@@ -476,6 +481,181 @@ public class CardController : MonoBehaviour,
             }
         }
     }
+
+    /// <summary>
+    /// タップ時: 手札の中で合体可能なカードを検索し、そのカードの上に「合体」ボタンを表示
+    /// </summary>
+    private void HandleTapForFusion()
+    {
+        var gm = GameManager.Instance;
+        if (gm == null || gm.currentState != GameState.Battle) return;
+        if (gm.battleManager == null || gm.battleManager.battleState != BattleManager.BattleState.PlayerTurn) return;
+        if (cardData == null) return;
+
+        // 既に自分が選択されている場合は解除
+        if (selectedCard == this)
+        {
+            ClearAllFusionButtons();
+            return;
+        }
+
+        // 合体ボタンをクリア
+        ClearAllFusionButtons();
+        selectedCard = this;
+
+        // 自カードを選択状態にハイライト
+        if (cardBackground != null)
+        {
+            cardBackground.color = new Color(1f, 0.85f, 0.2f, 1f); // 黄色ハイライト
+        }
+
+        // 手札の中で合体可能なカードを検索
+        var handArea = transform.parent;
+        if (handArea == null) return;
+
+        bool foundAny = false;
+
+        foreach (Transform child in handArea)
+        {
+            var otherCard = child.GetComponent<CardController>();
+            if (otherCard == null || otherCard == this || otherCard.cardData == null) continue;
+
+            // 合体レシピを検索
+            var resultIds = gm.FindFusionResults(cardData.cardId, otherCard.cardData.cardId);
+            if (resultIds.Count > 0)
+            {
+                // 合体ボタンを表示
+                int resultId = resultIds[0]; // 最初の結果を使用
+                var resultCard = gm.GetCardById(resultId);
+                string resultKanji = resultCard != null ? resultCard.kanji : "?";
+
+                CreateFusionButtonAboveCard(otherCard, resultId, resultKanji, resultIds);
+                foundAny = true;
+            }
+        }
+
+        if (!foundAny)
+        {
+            Debug.Log($"[CardController] 『{cardData.kanji}』と合体可能なカードが手札にありません");
+            ClearAllFusionButtons();
+        }
+    }
+
+    /// <summary>
+    /// カードの上に「合体」ボタンを生成
+    /// </summary>
+    private void CreateFusionButtonAboveCard(CardController targetCard, int resultId, string resultKanji, List<int> allResultIds)
+    {
+        // ボタンの親はCanvasルート（UIの最前面に表示するため）
+        Canvas canvas = targetCard.GetComponentInParent<Canvas>();
+        if (canvas == null) return;
+
+        GameObject btnObj = new GameObject("FusionButton");
+        btnObj.transform.SetParent(canvas.transform, false);
+        btnObj.transform.SetAsLastSibling();
+
+        // ボタンの位置をカードの上に設定
+        var btnRect = btnObj.AddComponent<RectTransform>();
+        btnRect.sizeDelta = new Vector2(100f, 40f);
+
+        // カードのワールド位置をCanvas座標に変換
+        Vector3 cardWorldPos = targetCard.transform.position;
+        Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(canvas.worldCamera, cardWorldPos);
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            canvas.transform as RectTransform, screenPoint, canvas.worldCamera, out Vector2 localPoint);
+        btnRect.anchoredPosition = localPoint + new Vector2(0, 80f); // カードの上に配置
+
+        // ボタン背景
+        var btnImage = btnObj.AddComponent<Image>();
+        btnImage.color = new Color(1f, 0.75f, 0f, 0.95f); // ゴールド
+
+        // ボタンコンポーネント
+        var button = btnObj.AddComponent<Button>();
+        var colors = button.colors;
+        colors.normalColor = btnImage.color;
+        colors.highlightedColor = new Color(1f, 0.85f, 0.2f, 1f);
+        colors.pressedColor = new Color(0.9f, 0.6f, 0f, 1f);
+        button.colors = colors;
+
+        // ボタンテキスト
+        var textGo = new GameObject("Text");
+        textGo.transform.SetParent(btnObj.transform, false);
+        var textRect = textGo.AddComponent<RectTransform>();
+        textRect.anchorMin = Vector2.zero;
+        textRect.anchorMax = Vector2.one;
+        textRect.offsetMin = Vector2.zero;
+        textRect.offsetMax = Vector2.zero;
+
+        var tmp = textGo.AddComponent<TextMeshProUGUI>();
+        tmp.text = $"合体→{resultKanji}";
+        tmp.fontSize = 18;
+        tmp.color = new Color(0.1f, 0.05f, 0f);
+        tmp.alignment = TextAlignmentOptions.Center;
+        tmp.fontStyle = FontStyles.Bold;
+        if (appFont != null) tmp.font = appFont;
+
+        // ボタンクリック時の処理
+        CardController sourceRef = this;
+        CardController targetRef = targetCard;
+
+        if (allResultIds.Count == 1)
+        {
+            button.onClick.AddListener(() =>
+            {
+                ClearAllFusionButtons();
+                sourceRef.ProceedFusion(targetRef, resultId);
+            });
+        }
+        else
+        {
+            // 複数結果がある場合は選択UIを表示
+            button.onClick.AddListener(() =>
+            {
+                ClearAllFusionButtons();
+                var gm = GameManager.Instance;
+                if (gm != null)
+                {
+                    gm.ShowFusionSelectionUI(allResultIds, (selectedId) =>
+                    {
+                        sourceRef.ProceedFusion(targetRef, selectedId);
+                    });
+                }
+            });
+        }
+
+        // ボヨヨン出現アニメーション
+        btnObj.transform.localScale = Vector3.zero;
+        if (VFXManager.Instance != null)
+        {
+            VFXManager.Instance.PlaySpawnEffect(btnObj);
+        }
+        else
+        {
+            btnObj.transform.localScale = Vector3.one;
+        }
+
+        activeFusionButtons.Add(btnObj);
+    }
+
+    /// <summary>
+    /// 全ての合体ボタンをクリアし、選択状態を解除
+    /// </summary>
+    public static void ClearAllFusionButtons()
+    {
+        foreach (var btn in activeFusionButtons)
+        {
+            if (btn != null) Object.Destroy(btn);
+        }
+        activeFusionButtons.Clear();
+
+        // 選択カードの色を戻す
+        if (selectedCard != null && selectedCard.cardBackground != null)
+        {
+            selectedCard.cardBackground.color = selectedCard.originalColor;
+        }
+        selectedCard = null;
+    }
+
     // ============================================
     // ユーティリティ
     // ============================================

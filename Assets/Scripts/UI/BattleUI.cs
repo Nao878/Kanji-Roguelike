@@ -51,6 +51,9 @@ public class BattleUI : MonoBehaviour
     /// </summary>
     public void UpdateHandUI()
     {
+        // 合体ボタンをクリア
+        CardController.ClearAllFusionButtons();
+
         // 既存のカードUIをクリア
         foreach (var card in handCards)
         {
