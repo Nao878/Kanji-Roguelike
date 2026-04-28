@@ -604,4 +604,87 @@ public class VFXManager : MonoBehaviour
 
         Destroy(obj);
     }
+
+
+/// <summary>
+    /// 「合体不可」ポップアップテキストを指定位置の上に表示し、フェードアウトしながら上昇して消える
+    /// </summary>
+    public void PlayNoFusionPopup(Vector3 worldPosition)
+    {
+        Transform canvasParent = transform.parent;
+        if (canvasParent == null)
+        {
+            var canvas = FindFirstObjectByType<Canvas>();
+            if (canvas != null) canvasParent = canvas.transform;
+            else return;
+        }
+
+        GameObject textObj = new GameObject("NoFusionPopup");
+        textObj.transform.SetParent(canvasParent, false);
+        textObj.transform.position = worldPosition + Vector3.up * 60f;
+        textObj.transform.SetAsLastSibling();
+
+        var tmp = textObj.AddComponent<TextMeshProUGUI>();
+        tmp.text = "合体不可";
+        tmp.fontSize = 32;
+        tmp.color = new Color(1f, 0.35f, 0.35f, 1f);
+        tmp.alignment = TextAlignmentOptions.Center;
+        tmp.fontStyle = FontStyles.Bold;
+        if (appFont != null) tmp.font = appFont;
+
+        tmp.outlineWidth = 0.25f;
+        tmp.outlineColor = new Color(0.2f, 0f, 0f, 1f);
+
+        var rect = textObj.GetComponent<RectTransform>();
+        rect.sizeDelta = new Vector2(200f, 50f);
+
+        StartCoroutine(CoNoFusionPopup(textObj));
+    }
+
+    private IEnumerator CoNoFusionPopup(GameObject obj)
+    {
+        float duration = 1.0f;
+        float elapsed = 0f;
+
+        var tmp = obj.GetComponent<TextMeshProUGUI>();
+        Vector3 startPos = obj.transform.localPosition;
+
+        // 初期: 小さく出現 → 拡大
+        obj.transform.localScale = Vector3.one * 0.5f;
+
+        while (elapsed < duration)
+        {
+            if (obj == null) yield break;
+
+            float t = elapsed / duration;
+
+            // スケール: ボヨヨン出現 (0~0.15)
+            if (t < 0.15f)
+            {
+                float scale = Mathf.Lerp(0.5f, 1.15f, t / 0.15f);
+                obj.transform.localScale = Vector3.one * scale;
+            }
+            else if (t < 0.25f)
+            {
+                float scale = Mathf.Lerp(1.15f, 1.0f, (t - 0.15f) / 0.1f);
+                obj.transform.localScale = Vector3.one * scale;
+            }
+
+            // 上方向にゆっくり移動
+            float yOffset = Mathf.Lerp(0f, 50f, t);
+            obj.transform.localPosition = startPos + new Vector3(0, yOffset, 0);
+
+            // フェードアウト (後半40%)
+            if (t > 0.6f)
+            {
+                float alpha = Mathf.Lerp(1f, 0f, (t - 0.6f) / 0.4f);
+                tmp.alpha = alpha;
+            }
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        Destroy(obj);
+    }
 }

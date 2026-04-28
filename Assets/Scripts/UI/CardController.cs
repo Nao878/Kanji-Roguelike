@@ -40,6 +40,11 @@ public class CardController : MonoBehaviour,
     private bool isHighlighted = false;
     private Color originalColor;
 
+    // 選択ハイライト状態
+    private bool isSelected = false;
+    private Outline selectionOutline;
+    private static readonly float SELECTION_LIFT = 20f; // 選択時の浮き上がり量
+
     // 合体ボタン管理（静的：全カードで共有）
     private static List<GameObject> activeFusionButtons = new List<GameObject>();
     private static CardController selectedCard = null;
@@ -503,11 +508,27 @@ public class CardController : MonoBehaviour,
         ClearAllFusionButtons();
         selectedCard = this;
 
-        // 自カードを選択状態にハイライト
+        // 自カードを選択状態にハイライト（色変更 + 浮き上がり + Outline発光）
+        isSelected = true;
         if (cardBackground != null)
         {
             cardBackground.color = new Color(1f, 0.85f, 0.2f, 1f); // 黄色ハイライト
         }
+
+        // Outlineコンポーネントで発光エフェクト
+        selectionOutline = gameObject.GetComponent<Outline>();
+        if (selectionOutline == null)
+        {
+            selectionOutline = gameObject.AddComponent<Outline>();
+        }
+        selectionOutline.effectColor = new Color(1f, 0.9f, 0.3f, 0.9f); // 黄金色の発光
+        selectionOutline.effectDistance = new Vector2(3f, 3f);
+        selectionOutline.enabled = true;
+
+        // カードを少し上に浮き上がらせる
+        var pos = rectTransform.anchoredPosition;
+        pos.y += SELECTION_LIFT;
+        rectTransform.anchoredPosition = pos;
 
         // 手札の中で合体可能なカードを検索
         var handArea = transform.parent;
@@ -537,6 +558,13 @@ public class CardController : MonoBehaviour,
         if (!foundAny)
         {
             Debug.Log($"[CardController] 『{cardData.kanji}』と合体可能なカードが手札にありません");
+
+            // 「合体不可」ポップアップ表示
+            if (VFXManager.Instance != null)
+            {
+                VFXManager.Instance.PlayNoFusionPopup(transform.position);
+            }
+
             ClearAllFusionButtons();
         }
     }
@@ -648,10 +676,31 @@ public class CardController : MonoBehaviour,
         }
         activeFusionButtons.Clear();
 
-        // 選択カードの色を戻す
-        if (selectedCard != null && selectedCard.cardBackground != null)
+        // 選択カードのハイライトを完全に解除
+        if (selectedCard != null)
         {
-            selectedCard.cardBackground.color = selectedCard.originalColor;
+            // 背景色を戻す
+            if (selectedCard.cardBackground != null)
+            {
+                selectedCard.cardBackground.color = selectedCard.originalColor;
+            }
+
+            // Outlineを除去
+            if (selectedCard.selectionOutline != null)
+            {
+                selectedCard.selectionOutline.enabled = false;
+                Object.Destroy(selectedCard.selectionOutline);
+                selectedCard.selectionOutline = null;
+            }
+
+            // 浮き上がりを戻す
+            if (selectedCard.isSelected && selectedCard.rectTransform != null)
+            {
+                var pos = selectedCard.rectTransform.anchoredPosition;
+                pos.y -= SELECTION_LIFT;
+                selectedCard.rectTransform.anchoredPosition = pos;
+                selectedCard.isSelected = false;
+            }
         }
         selectedCard = null;
     }
